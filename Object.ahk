@@ -274,9 +274,12 @@ MetaClass(cls) {
         ObjRawSet(cls, "__init", Func("Object__init_").Bind(cm.m.call["__init"]))
     mcm.base := cls.base  ; For type identity of instances ('is').
     ObjSetBase(cls, mcm)
-    ObjRawSet(cls, "_", data)  ; Seems redundant, but might help st_init.
-    if st_init
+    if st_init {
+        ; Currently var initializers use ObjRawSet(), but might refer to
+        ; 'this' explicitly and therefore may require this._ to be set.
+        ObjRawSet(cls, "_", data)
         st_init.call(data)
+    }
     return data  ; Caller stores this in cls._.
 }
 
