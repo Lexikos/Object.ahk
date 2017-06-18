@@ -1,19 +1,52 @@
 
-xx := {}
-x := new MyFoo
-D x.HasProperty("someprop") " " x.HasProperty("someotherprop")
-for k, v in x
-    D k "=" v
-
-class MyFoo extends Object {
-    someprop {
-        get {
-            return 12
+class Object
+{
+    ; Data store
+    ; _ := Object_v()
+    
+    class _static
+    {
+        new(p*) {
+            return new this(p*)
         }
     }
-    someotherprop := 1
+    
+    HasProperty(name) {
+        cm := ObjGetBase(this)
+        return isObject(cm.m.get[name] || cm.m.set[name])
+            || ObjHasKey(this._, name)
+            ; || ObjHasKey(this, name)
+    }
+    HasMethod(name) {
+        cm := ObjGetBase(this)
+        return isObject(cm.m.call[name])
+    }
+    
+    ; Standard object methods
+    Delete(p*) {
+        return ObjDelete(this._, p*)
+    }
+    SetCapacity(p*) {
+        return ObjSetCapacity(this._, p*)
+    }
+    GetCapacity(p*) {
+        return ObjGetCapacity(this._, p*)
+    }
+    GetAddress(p) {
+        return ObjGetAddress(this._, p)
+    }
+    HasKey(p) {
+        return ObjHasKey(this._, p)
+    }
+    Clone() {
+        return {_: ObjClone(this._), base: this.base}
+    }
+    _NewEnum() {
+        return ObjNewEnum(this._)
+    }
+    
+    static _ := MetaClass(Object)
 }
-
 
 class Array extends Object
 {
@@ -67,61 +100,21 @@ class Array extends Object
             return this.e.Next(a, b)
         }
     }
+    
+    static _ := MetaClass(Array)
 }
 
-class Object
-{
-    ; Data store
-    ; _ := Object_v()
-    
-    new(p*) {
-        return new this(p*)
-    }
-    
-    __new() {
-        self := Object_v()
-        self._ := this
-        self.base := Class_Meta(this.base)
-        this.base := ""
-        return self
-        ; this.base := Class_Meta(this.base)
-    }
-    
-    HasProperty(name) {
-        cm := ObjGetBase(this)
-        return isObject(cm.m.get[name] || cm.m.set[name])
-            || ObjHasKey(this._, name)
-            ; || ObjHasKey(this, name)
-    }
-    HasMethod(name) {
-        cm := ObjGetBase(this)
-        return isObject(cm.m.call[name])
-    }
-    
-    ; Standard object methods
-    Delete(p*) {
-        return ObjDelete(this._, p*)
-    }
-    SetCapacity(p*) {
-        return ObjSetCapacity(this._, p*)
-    }
-    GetCapacity(p*) {
-        return ObjGetCapacity(this._, p*)
-    }
-    GetAddress(p) {
-        return ObjGetAddress(this._, p)
-    }
-    HasKey(p) {
-        return ObjHasKey(this._, p)
-    }
-    Clone() {
-        return {_: ObjClone(this._), base: this.base}
-    }
-    _NewEnum() {
-        return ObjNewEnum(this._)
-    }
+Object__new_(cm, f, this) {
+    self := Object_v()
+    self._ := this
+    self.base := cm
+    ObjSetBase(this, "")
+    (f) && f.call(self)
+    return self
 }
-
+Object__init_(f, this) {
+    f.call(this)
+}
 Object__get_(m, this, k, p*) {
     if f := m[k]
         return f.call(this, p*)
@@ -139,27 +132,37 @@ Object__call_(m, this, k, p*) {
     throw Exception("No such method", -2, k)
 }
 
+class Class_Meta_Key {
+}
 Class_Meta(cls) {
-    static meta_key := Object_v()
-    if ObjHasKey(cls, meta_key)
-        return cls[meta_key]
+    if ObjHasKey(cls, Class_Meta_Key)
+        return cls[Class_Meta_Key]
     m := Class_Members(cls)
     if !m.get["base"]
         m.get["base"] := Func("Object_ReturnArg1").Bind(cls)
     if !m.set["base"]
         m.set["base"] := Func("Object_SetBase")
+    cm := Class_Meta_new(m)
+    cm.base := cls  ; For type identity ('is').
+    ObjRawSet(cls, Class_Meta_Key, cm)
+    return cm
+}
+
+Class_Meta_new(m) {
     cm := Object_v()
     cm.__get := Func("Object__get_").Bind(m.get)
     cm.__set := Func("Object__set_").Bind(m.set)
     cm.__call := Func("Object__call_").Bind(m.call)
     cm.m := m
-    cm.base := cls  ; For type identity ('is').
-    cls[meta_key] := cm
     return cm
 }
 
 Object_ReturnArg1(arg1) {
     return arg1
+}
+
+Object_Throw(message, what) {
+    throw Exception(message, what)
 }
 
 Object_SetBase(this, newbase) {
@@ -170,22 +173,29 @@ Object_SetBase(this, newbase) {
     return newbase
 }
 
-Class_Members(cls) {
-    static m_key := Object_v()
-    if ObjHasKey(cls, m_key)
-        return cls[m_key]
-    cls[m_key] := m := Object_v()
+class Class_Members_Key {
+}
+Class_Members_new() {
+    m := Object_v()
     m.get := Object_v()
     m.set := Object_v()
     m.call := Object_v()
     ObjRawSet(m.get, "base", "")
     ObjRawSet(m.set, "base", "")
-    Class_Members_(cls, m)
     return m
 }
-Class_Members_(cls, m) {
-    if cls.base
-        Class_Members_(cls.base, m)
+Class_Members_SetBase(m, b) {
+    bm := Class_Members(b)
+    ObjSetBase(m.get, bm.get)
+    ObjSetBase(m.set, bm.set)
+    ObjSetBase(m.call, bm.call)
+}
+Class_Members(cls) {
+    if ObjHasKey(cls, Class_Members_Key)
+        return cls[Class_Members_Key]
+    ObjRawSet(cls, Class_Members_Key, m := Class_Members_new())
+    if bcls := ObjGetBase(cls)
+        Class_Members_SetBase(m, bcls)
     e := ObjNewEnum(cls)
     while e.Next(k, v) {
         if type(v) = "Func" {  ; Not isFunc() - don't want func NAMES, only true methods.
@@ -201,6 +211,7 @@ Class_Members_(cls, m) {
             ; Inherit static variables?
         }
     }
+    return m
 }
 
 Array(p*) {
@@ -214,22 +225,79 @@ Object_v(p*) {
     return p
 }
 
+ForEachDelete(enumerate, deleteFrom) {
+    e := ObjNewEnum(enumerate)
+    while e.Next(k)
+        ObjDelete(deleteFrom, k)
+}
+
+Class_DeleteMembers(cls, m) {
+    ForEachDelete(m.call, cls)
+    ForEachDelete(m.get, cls)
+    ForEachDelete(m.set, cls)
+}
+
+MetaClass(cls) {
+    cm := Class_Meta(cls)  ; Cache class meta prior to modification.
+    Class_DeleteMembers(cls, cm.m)
+    data := Object_v()
+    if st := ObjDelete(cls, "_static") {
+        ObjDelete(st, "__Class")
+        st_init := ObjDelete(st, "__Init")
+        m := Class_Members(st)
+    }
+    else {
+        st_init := false
+        m := Class_Members_new()
+    }
+    Class_Members_SetBase(m, Object)  ; Because classes are Objects too (static members aren't inherited).
+    e := ObjNewEnum(cls)
+    while e.Next(k, v) {
+        if type(v) == "Class"  ; Nested class (static variables should be in _static).
+            ObjRawSet(data, k, v)
+    }
+    ForEachDelete(data, cls)
+    m.get["base"] := Func("Object_ReturnArg1").Bind(cls.base)
+    m.set["base"] := Func("Object_Throw").Bind("Base class cannot be changed", -4)
+    mcm := Class_Meta_new(m)
+    ; __new and __init must be set here because __call isn't called for them,
+    ; and we need to do special stuff anyway.  These are called with 'this' set
+    ; to the new instance, and shouldn't be callable by the script since __call
+    ; would be called in those cases.
+    ; mcm.__new := Func("Object__new_").Bind(cm, cm.m.call["__new"])  ; This is called on class.base because the instance won't have a meta-object until after this is called.
+    ; if cm.m.call["__init"]
+        ; mcm.__init := Func("Object__init_").Bind(cm.m.call["__init"])
+    ; They're set on the class itself rather than mcm because base.__init()
+    ; would otherwise cause infinite recursion.
+    ObjRawSet(cls, "__new", Func("Object__new_").Bind(cm, cm.m.call["__new"]))
+    if cm.m.call["__init"]
+        ObjRawSet(cls, "__init", Func("Object__init_").Bind(cm.m.call["__init"]))
+    mcm.base := cls.base  ; For type identity of instances ('is').
+    ObjSetBase(cls, mcm)
+    ObjRawSet(cls, "_", data)  ; Seems redundant, but might help st_init.
+    if st_init
+        st_init.call(data)
+    return data  ; Caller stores this in cls._.
+}
+
 
 ;
 ; Bad code! Version-dependent. Relies on undocumented stuff.
 ;
 
 ObjGetBase(obj) {
-    static Object_vtbl := NumGet(&Object_v())
-    if !isObject(obj) || NumGet(&obj) != Object_vtbl
+    try
+        ObjGetCapacity(obj) ; Type-check.
+    catch
         throw Exception("Invalid parameter #1", -1, obj)
     if thebase := NumGet(&obj + 2*A_PtrSize)
         return Object(thebase)
 }
 
 ObjSetBase(obj, newbase) {
-    static Object_vtbl := NumGet(&Object_v())
-    if !isObject(obj) || NumGet(&obj) != Object_vtbl
+    try
+        ObjGetCapacity(obj) ; Type-check.
+    catch
         throw Exception("Invalid parameter #1", -1, obj)
     if newbase {
         if !isObject(newbase)
