@@ -5,8 +5,29 @@
 ; gosub TestDefineProp
 ; gosub TestDefineMeth
 ; gosub TestClass
-gosub TestSubClass
+; gosub TestSubClass
+gosub TestBase
+gosub TestIs
 ExitApp
+
+TestIs:
+x := new Object, y := new Object
+Test (x is Object) (x is 'object') (Object is Object) (x is y)
+Test (new TestClass) is TestClass
+Test (new TestClass) is Object
+Test (TestClass is Object) (TestSubClass is TestClass)
+return
+
+TestBase:
+Test ({}.base = Object) ([].base = Array)
+Test (new Object).base = Object
+Test (new TestClass).base = TestClass
+Test TestClass.base = Object
+try
+    Test (TestClass.base := 1) " FAIL"
+catch Exception
+    D "(TestClass.base := 1) => " Exception.message
+return
 
 TestClass:
 x := new TestClass
@@ -39,7 +60,7 @@ class TestClass extends Object {
     static _ := MetaClass(TestClass)
 }
 
-TestSubClass:
+TestSubClass:  ; FIXME: Currently fails because base.x() can't find x in the base (or _static has no base).
 Test TestSubClass.smeth()
 x := new TestSubClass
 Test x.imeth()

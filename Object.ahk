@@ -292,7 +292,8 @@ MetaClass(cls) {
             ObjRawSet(data, k, v)
     }
     ForEachDelete(data, cls)
-    m.get["base"] := Func("Object_ReturnArg1").Bind(cls.base)
+    cls_base := ObjGetBase(cls)  ; cls.base won't work right now for subclasses of Object.
+    m.get["base"] := Func("Object_ReturnArg1").Bind(cls_base)
     m.set["base"] := Func("Object_Throw").Bind("Base class cannot be changed", -2)
     ; mcm defines the interface of the class object (not instances).
     mcm := Class_Meta_new(m)
@@ -317,7 +318,7 @@ MetaClass(cls) {
     ObjRawSet(cls, "__new", Func("Object__new_").Bind(cm, cm.m.call["__new"]))
     if cm.m.call["__init"]
         ObjRawSet(cls, "__init", Func("Object__init_").Bind(cm.m.call["__init"]))
-    mcm.base := cls.base  ; For type identity of instances ('is').
+    mcm.base := cls_base  ; For type identity of instances ('is').
     ObjSetBase(cls, mcm)
     if st && st.__init {
         ; Currently var initializers use ObjRawSet(), but might refer to
