@@ -22,6 +22,20 @@ class Object
         return isObject(cm.m.call[name])
     }
     
+    DefineProperty(name, prop) {
+        if !isObject(prop) || !(prop.get || prop.set)
+            throw Exception("Invalid parameter #2", -2, prop)
+        cm := Own_Meta(this)
+        Class_Members_DefProp(cm.m, name, prop)
+    }
+    
+    DefineMethod(name, func) {
+        if !isObject(func)
+            throw Exception("Invalid parameter #2", -2, func)
+        cm := Own_Meta(this)
+        Class_Members_DefMeth(cm.m, name, func)
+    }
+    
     ; Standard object methods
     Delete(p*) {
         return ObjDelete(this._, p*)
@@ -106,6 +120,10 @@ class Array extends Object
 
 Object__new_(cm, f, this) {
     self := Object_v()
+    ; This reuses the original object for data storage, since it already
+    ; contains the ad hoc properties which were created in __init.
+    ; FIXME: It's probably better to have property-assignment semantics,
+    ;  not direct-to-data (i.e. property setters should be called).
     self._ := this
     self.base := cm
     ObjSetBase(this, "")
@@ -137,15 +155,7 @@ class Class_Meta_Key {
 Class_Meta(cls) {
     if ObjHasKey(cls, Class_Meta_Key)
         return cls[Class_Meta_Key]
-    m := Class_Members(cls)
-    if !m.get["base"]
-        m.get["base"] := Func("Object_ReturnArg1").Bind(cls)
-    if !m.set["base"]
-        m.set["base"] := Func("Object_SetBase")
-    cm := Class_Meta_new(m)
-    cm.base := cls  ; For type identity ('is').
-    ObjRawSet(cls, Class_Meta_Key, cm)
-    return cm
+    throw Exception("MetaClass has not been called for class " cls.__class, -1)
 }
 
 Class_Meta_new(m) {
@@ -155,6 +165,19 @@ Class_Meta_new(m) {
     cm.__call := Func("Object__call_").Bind(m.call)
     cm.m := m
     return cm
+}
+
+Own_Meta(this) {
+    cm := ObjGetBase(this)  ; It is assumed that 'this' is a properly constructed Object, with a meta-object.
+    if cm.owner == &this
+        return cm
+    ; else: cm is shared.
+    m := Class_Members_new()
+    tm := Class_Meta_new(m)
+    tm.owner := &this
+    Class_Members_SetBase(m, cm)
+    ObjSetBase(this, tm)
+    return tm
 }
 
 Object_ReturnArg1(arg1) {
@@ -182,6 +205,7 @@ Class_Members_new() {
     m.call := Object_v()
     ObjRawSet(m.get, "base", "")
     ObjRawSet(m.set, "base", "")
+    ObjRawSet(m.call, "base", "")
     return m
 }
 Class_Members_SetBase(m, b) {
@@ -189,6 +213,13 @@ Class_Members_SetBase(m, b) {
     ObjSetBase(m.get, bm.get)
     ObjSetBase(m.set, bm.set)
     ObjSetBase(m.call, bm.call)
+}
+Class_Members_DefProp(m, name, prop) {
+    (get := prop.get) && (m.get[name] := get)
+    (set := prop.set) && (m.set[name] := set)
+}
+Class_Members_DefMeth(m, name, func) {
+    m.call[name] := func
 }
 Class_Members(cls) {
     if ObjHasKey(cls, Class_Members_Key)
@@ -199,13 +230,10 @@ Class_Members(cls) {
     e := ObjNewEnum(cls)
     while e.Next(k, v) {
         if type(v) = "Func" {  ; Not isFunc() - don't want func NAMES, only true methods.
-            m.call[k] := v
+            Class_Members_DefMeth(m, k, v)
         }
         else if type(v) = "Property" {
-            if f := v.get
-                m.get[k] := f
-            if f := v.set
-                m.set[k] := f
+            Class_Members_DefProp(m, k, v)
         }
         else {
             ; Inherit static variables?
@@ -238,19 +266,26 @@ Class_DeleteMembers(cls, m) {
 }
 
 MetaClass(cls) {
-    cm := Class_Meta(cls)  ; Cache class meta prior to modification.
+    ; Construct meta-object for instance prototype.
+    m := Class_Members(cls)
+    if !m.get["base"]
+        m.get["base"] := Func("Object_ReturnArg1").Bind(cls)
+    if !m.set["base"]
+        m.set["base"] := Func("Object_SetBase")
+    cm := Class_Meta_new(m)
+    cm.base := cls  ; For type identity ('is').
+    ObjRawSet(cls, Class_Meta_Key, cm)
+    ; Remove instance members from class object.
     Class_DeleteMembers(cls, cm.m)
-    data := Object_v()
+    ; Construct meta-object for class/static members.
     if st := ObjDelete(cls, "_static") {
-        ObjDelete(st, "__Class")
-        st_init := ObjDelete(st, "__Init")
         m := Class_Members(st)
     }
     else {
-        st_init := false
         m := Class_Members_new()
     }
     Class_Members_SetBase(m, Object)  ; Because classes are Objects too (static members aren't inherited).
+    data := Object_v()
     e := ObjNewEnum(cls)
     while e.Next(k, v) {
         if type(v) == "Class"  ; Nested class (static variables should be in _static).
@@ -258,8 +293,18 @@ MetaClass(cls) {
     }
     ForEachDelete(data, cls)
     m.get["base"] := Func("Object_ReturnArg1").Bind(cls.base)
-    m.set["base"] := Func("Object_Throw").Bind("Base class cannot be changed", -4)
+    m.set["base"] := Func("Object_Throw").Bind("Base class cannot be changed", -2)
+    ; mcm defines the interface of the class object (not instances).
     mcm := Class_Meta_new(m)
+    mcm.owner := &cls
+    ; cm defines the interface of the instances, and prototype provides
+    ; a way to DefineProperty()/DefineMethod() for all instances, since
+    ; MyClass.DefineXxx() defines a Xxx for the class itself (static).
+    proto := Object_v()
+    proto._ := Object_v()
+    ObjSetBase(proto, cm)
+    cm.owner := &proto
+    ObjRawSet(cls, "prototype", proto)
     ; __new and __init must be set here because __call isn't called for them,
     ; and we need to do special stuff anyway.  These are called with 'this' set
     ; to the new instance, and shouldn't be callable by the script since __call
@@ -274,11 +319,11 @@ MetaClass(cls) {
         ObjRawSet(cls, "__init", Func("Object__init_").Bind(cm.m.call["__init"]))
     mcm.base := cls.base  ; For type identity of instances ('is').
     ObjSetBase(cls, mcm)
-    if st_init {
+    if st && st.__init {
         ; Currently var initializers use ObjRawSet(), but might refer to
         ; 'this' explicitly and therefore may require this._ to be set.
         ObjRawSet(cls, "_", data)
-        st_init.call(data)
+        st.__init.call(data)
     }
     return data  ; Caller stores this in cls._.
 }
