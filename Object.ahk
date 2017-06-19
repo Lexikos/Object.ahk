@@ -105,6 +105,22 @@ class Array extends Object
         }
     }
     
+    InsertAt(p*) {
+        return ObjInsertAt(this._, p*)
+    }
+    
+    RemoveAt(p*) {
+        return ObjRemoveAt(this._, p*)
+    }
+    
+    Push(p*) {
+        return ObjPush(this._, p*)
+    }
+    
+    Pop() {
+        return ObjPop(this._)
+    }
+    
     _NewEnum() {
         return new Array.Enumerator(this)
     }

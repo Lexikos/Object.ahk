@@ -7,9 +7,50 @@
 ; gosub TestClass
 ; gosub TestSubClass
 ; gosub TestBase
-gosub TestIs
-gosub TestIs2
+; gosub TestIs
+; gosub TestIs2
+; gosub TestCurly
+; gosub TestSquare
+gosub TestArray
 ExitApp
+
+TestArray:
+x := [10, 20,, 40]
+x.prop := 42
+D('for v in x'), s := ''
+for v in x
+    s .= ' ' A_Index ':' v
+D s
+D('for k, v in x'), s := ''
+for k, v in x
+    s .= ' ' k ':' v
+D s
+Test x.RemoveAt(2,1*2)
+Test x.length := 4
+D('for v in x'), s := ''
+for v in x
+    s .= ' ' A_Index ':' v
+D s
+D('for k, v in x'), s := ''
+for k, v in x
+    s .= ' ' k ':' v
+D s
+return
+
+TestSquare:
+x := [10, 20,, 40]
+Test (x is Array) (x is Object)
+Test x.HasKey(1) x.HasProperty(1) x.HasProperty(3) ObjHasKey(x, 1)
+Test x.HasProperty('Length') x.HasMethod('Length') x.HasMethod('MaxIndex')
+Test x.1 x[1] x.2 x[2] ' ' x.Length
+return
+
+TestCurly:
+x := {a: 1, b: 2}
+Test (x is Arrax) (x is Object)
+Test x.HasKey('a') x.HasProperty('a') ObjHasKey(x, 'a')
+Test x.a x.b x['a']
+return
 
 TestIs2:
 x := new Object, y := new Object
