@@ -11,6 +11,10 @@ class Object
         }
     }
     
+    is(type) {
+        return this is type
+    }
+    
     HasProperty(name) {
         cm := ObjGetBase(this)
         return isObject(cm.m.get[name] || cm.m.set[name])
@@ -60,6 +64,21 @@ class Object
     }
     
     static _ := MetaClass(Object)
+}
+
+class Class extends Object
+{
+    is(type) {
+        if isObject(type)
+            return type = Class || type = Object
+        return this is type
+    }
+}
+
+Value__call(value, n, p*) {
+    static _ := ("".base.is := Func("Value__call"), 0)
+    if n = "is"
+        return value is p[1]
 }
 
 class Array extends Object
@@ -284,7 +303,7 @@ MetaClass(cls) {
     else {
         m := Class_Members_new()
     }
-    Class_Members_SetBase(m, Object)  ; Because classes are Objects too (static members aren't inherited).
+    Class_Members_SetBase(m, Class)
     data := Object_v()
     e := ObjNewEnum(cls)
     while e.Next(k, v) {

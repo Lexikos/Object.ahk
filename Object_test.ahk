@@ -6,9 +6,19 @@
 ; gosub TestDefineMeth
 ; gosub TestClass
 ; gosub TestSubClass
-gosub TestBase
+; gosub TestBase
 gosub TestIs
+gosub TestIs2
 ExitApp
+
+TestIs2:
+x := new Object, y := new Object
+Test x.is(Object) x.is('object') Object.is(Object) x.is(y)
+Test (new TestClass).is(TestClass)
+Test (new TestClass).is(Object)
+Test TestClass.is(Object) TestSubClass.is(TestClass)
+Test TestClass.is(Class) (new TestClass).is(Class)
+return
 
 TestIs:
 x := new Object, y := new Object
@@ -16,6 +26,7 @@ Test (x is Object) (x is 'object') (Object is Object) (x is y)
 Test (new TestClass) is TestClass
 Test (new TestClass) is Object
 Test (TestClass is Object) (TestSubClass is TestClass)
+Test (TestClass is Class) (new TestClass is Class)
 return
 
 TestBase:
