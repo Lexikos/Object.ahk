@@ -85,40 +85,48 @@ class Array extends Object
 {
     Length {
         get {
-            return ObjLength(this._)
+            return this._['length'] || ObjLength(this._)
         }
         set {
-            if !(value is 'integer')
+            if !(value is 'integer') || value < 0
                 throw Exception("Invalid value", -1, value)
             n := ObjLength(this._)
-            if value = n
-                return n
-            if value < n {
+            if value < n
                 this.Delete(value + 1, n)
-                n := ObjLength(this._)
-            }
-            else {
-                Loop value - n
-                    ObjRawSet(this._, ++n, "")
-            }
-            return ObjLength(this._)
+            this._['length'] := value
+            return value
         }
     }
     
-    InsertAt(p*) {
-        return ObjInsertAt(this._, p*)
+    InsertAt(n, values*) {
+        if (length := this._['length']) != '' {
+            if n <= length
+                this._['length'] := length + values.Length()
+            else
+                this._['length'] := n + values.Length() - 1
+        }
+        return ObjInsertAt(this._, n, values*)
     }
     
-    RemoveAt(p*) {
-        return ObjRemoveAt(this._, p*)
+    RemoveAt(n, p*) {
+        if (length := this._['length']) != '' {
+            if n <= length {
+                numvals := p.Length() ? p[1] : 1
+                if n + numvals > length
+                    this._['length'] := n - 1
+                else
+                    this._['length'] := length - numvals
+            }
+        }
+        return ObjRemoveAt(this._, n, p*)
     }
     
-    Push(p*) {
-        return ObjPush(this._, p*)
+    Push(values*) {
+        return this.InsertAt(this.Length + 1, values*)
     }
     
     Pop() {
-        return ObjPop(this._)
+        return this.RemoveAt(this.Length)
     }
     
     _NewEnum() {

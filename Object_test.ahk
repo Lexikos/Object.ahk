@@ -11,10 +11,23 @@
 ; gosub TestIs2
 ; gosub TestCurly
 ; gosub TestSquare
-gosub TestArray
+; gosub TestArrayFor
+gosub TestArrayLength
 ExitApp
 
-TestArray:
+TestArrayLength:
+Test ['A','B','C'].length
+Test ['A',,'B',,'C'].length
+x := ['A','B','C']
+Test (x.Length := 2) x.HasKey(3) x.Length ' :' x[3]
+Test (x.Length := 4) x.HasKey(4) x.Length ' :' x[4]
+Test x.Push('D') '=' x[4] ',' x[5] ' #' x.Length
+Test x.RemoveAt(5) ' ' x.Length
+Test x.RemoveAt(10) ' ' x.Length
+Test x.InsertAt(10, 'X') ' ' x.Length ' ' x[10]
+return
+
+TestArrayFor:
 x := [10, 20,, 40]
 x.prop := 42
 D('for v in x'), s := ''
