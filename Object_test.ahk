@@ -12,8 +12,16 @@
 ; gosub TestCurly
 ; gosub TestSquare
 ; gosub TestArrayFor
-gosub TestArrayLength
+; gosub TestArrayLength
+gosub TestArrayIndex
 ExitApp
+
+TestArrayIndex:
+Test x := ['A','B','C']
+Test x[1] x[2] x[3] x[-1] x[-2] x[-3] (x[-4] || '.') (x[0] || '.')
+Test (x[0] := 'D') x[-1] x[4] ' ' x.length
+Test (x[-2] := 'c') x[3]
+return
 
 TestArrayLength:
 Test ['A','B','C'].length

@@ -158,6 +158,26 @@ class Array extends Object
         }
     }
     
+    class _Indexer {
+        __get(index, p*) {
+            if index <= 0 && index is 'integer' {
+                len := this.HasKey('length') ? this.length : this.Length()
+                return this[len + index + 1, p*]
+            }
+        }
+        __set(index, p*) {
+            if index <= 0 && index is 'integer' && p.Length() {
+                len := this.HasKey('length') ? this.length : this.Length()
+                value := p.Pop()
+                return this[len + index + 1, p*] := value
+            }
+        }
+    }
+    
+    __new() {
+        ObjSetBase(this._, Array._Indexer)
+    }
+    
     static _ := MetaClass(Array)
 }
 
@@ -289,6 +309,7 @@ Array(p*) {
     a := Object_v()
     a._ := p
     a.base := Class_Meta(Array)
+    p.base := Array._Indexer
     return a
 }
 
