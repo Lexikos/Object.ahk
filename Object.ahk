@@ -1,9 +1,30 @@
 
-class Object
+class _ClassInitMetaFunctions
 {
-    ; Data store
-    ; _ := Object_v()
-    
+    __init() {
+        ObjRawSet(this, "_", MetaClass(this))
+        cm := ObjGetBase(this.prototype)
+        if f := cm.m.call["__init"]
+            f.call(this)
+    }
+    __get(p*) {
+        ObjRawSet(this, "_", MetaClass(this))
+        return this[p*]
+    }
+    __set(p*) {
+        ObjRawSet(this, "_", MetaClass(this))
+        v := p.Pop()
+        return this[p*] := v
+    }
+    __call(p*) {
+        ObjRawSet(this, "_", MetaClass(this))
+        m := p.RemoveAt(1)
+        return this[m](p*)
+    }
+}
+
+class Object extends _ClassInitMetaFunctions
+{
     class _static
     {
         new(p*) {
@@ -11,67 +32,71 @@ class Object
         }
     }
     
-    is(type) {
-        return this is type
+    class _instance
+    {
+        is(type) {
+            return this is type
+        }
+        
+        HasProperty(name) {
+            cm := ObjGetBase(this)
+            return isObject(cm.m.get[name] || cm.m.set[name])
+                || ObjHasKey(this._, name)
+                ; || ObjHasKey(this, name)
+        }
+        HasMethod(name) {
+            cm := ObjGetBase(this)
+            return isObject(cm.m.call[name])
+        }
+        
+        DefineProperty(name, prop) {
+            if !isObject(prop) || !(prop.get || prop.set)
+                throw Exception("Invalid parameter #2", -2, prop)
+            cm := Own_Meta(this)
+            Class_Members_DefProp(cm.m, name, prop)
+        }
+        
+        DefineMethod(name, func) {
+            if !isObject(func)
+                throw Exception("Invalid parameter #2", -2, func)
+            cm := Own_Meta(this)
+            Class_Members_DefMeth(cm.m, name, func)
+        }
+        
+        ; Standard object methods
+        Delete(p*) {
+            return ObjDelete(this._, p*)
+        }
+        SetCapacity(p*) {
+            return ObjSetCapacity(this._, p*)
+        }
+        GetCapacity(p*) {
+            return ObjGetCapacity(this._, p*)
+        }
+        GetAddress(p) {
+            return ObjGetAddress(this._, p)
+        }
+        HasKey(p) {
+            return ObjHasKey(this._, p)
+        }
+        Clone() {
+            return {_: ObjClone(this._), base: this.base}
+        }
+        _NewEnum() {
+            return ObjNewEnum(this._)
+        }
     }
-    
-    HasProperty(name) {
-        cm := ObjGetBase(this)
-        return isObject(cm.m.get[name] || cm.m.set[name])
-            || ObjHasKey(this._, name)
-            ; || ObjHasKey(this, name)
-    }
-    HasMethod(name) {
-        cm := ObjGetBase(this)
-        return isObject(cm.m.call[name])
-    }
-    
-    DefineProperty(name, prop) {
-        if !isObject(prop) || !(prop.get || prop.set)
-            throw Exception("Invalid parameter #2", -2, prop)
-        cm := Own_Meta(this)
-        Class_Members_DefProp(cm.m, name, prop)
-    }
-    
-    DefineMethod(name, func) {
-        if !isObject(func)
-            throw Exception("Invalid parameter #2", -2, func)
-        cm := Own_Meta(this)
-        Class_Members_DefMeth(cm.m, name, func)
-    }
-    
-    ; Standard object methods
-    Delete(p*) {
-        return ObjDelete(this._, p*)
-    }
-    SetCapacity(p*) {
-        return ObjSetCapacity(this._, p*)
-    }
-    GetCapacity(p*) {
-        return ObjGetCapacity(this._, p*)
-    }
-    GetAddress(p) {
-        return ObjGetAddress(this._, p)
-    }
-    HasKey(p) {
-        return ObjHasKey(this._, p)
-    }
-    Clone() {
-        return {_: ObjClone(this._), base: this.base}
-    }
-    _NewEnum() {
-        return ObjNewEnum(this._)
-    }
-    
-    static _ := MetaClass(Object)
 }
 
 class Class extends Object
 {
-    is(type) {
-        if isObject(type)
-            return type = Class || type = Object
-        return this is type
+    class _instance
+    {
+        is(type) {
+            if isObject(type)
+                return type = Class || type = Object
+            return this is type
+        }
     }
 }
 
@@ -83,54 +108,61 @@ Value__call(value, n, p*) {
 
 class Array extends Object
 {
-    Length {
-        get {
-            return this._['length'] || ObjLength(this._)
+    class _instance
+    {
+        __new() {
+            ObjSetBase(this._, Array._Indexer)
         }
-        set {
-            if !(value is 'integer') || value < 0
-                throw Exception("Invalid value", -1, value)
-            n := ObjLength(this._)
-            if value < n
-                this.Delete(value + 1, n)
-            this._['length'] := value
-            return value
-        }
-    }
-    
-    InsertAt(n, values*) {
-        if (length := this._['length']) != '' {
-            if n <= length
-                this._['length'] := length + values.Length()
-            else
-                this._['length'] := n + values.Length() - 1
-        }
-        return ObjInsertAt(this._, n, values*)
-    }
-    
-    RemoveAt(n, p*) {
-        if (length := this._['length']) != '' {
-            if n <= length {
-                numvals := p.Length() ? p[1] : 1
-                if n + numvals > length
-                    this._['length'] := n - 1
-                else
-                    this._['length'] := length - numvals
+        
+        Length {
+            get {
+                return this._['length'] || ObjLength(this._)
+            }
+            set {
+                if !(value is 'integer') || value < 0
+                    throw Exception("Invalid value", -1, value)
+                n := ObjLength(this._)
+                if value < n
+                    this.Delete(value + 1, n)
+                this._['length'] := value
+                return value
             }
         }
-        return ObjRemoveAt(this._, n, p*)
-    }
-    
-    Push(values*) {
-        return this.InsertAt(this.Length + 1, values*)
-    }
-    
-    Pop() {
-        return this.RemoveAt(this.Length)
-    }
-    
-    _NewEnum() {
-        return new Array.Enumerator(this)
+        
+        InsertAt(n, values*) {
+            if (length := this._['length']) != '' {
+                if n <= length
+                    this._['length'] := length + values.Length()
+                else
+                    this._['length'] := n + values.Length() - 1
+            }
+            return ObjInsertAt(this._, n, values*)
+        }
+        
+        RemoveAt(n, p*) {
+            if (length := this._['length']) != '' {
+                if n <= length {
+                    numvals := p.Length() ? p[1] : 1
+                    if n + numvals > length
+                        this._['length'] := n - 1
+                    else
+                        this._['length'] := length - numvals
+                }
+            }
+            return ObjRemoveAt(this._, n, p*)
+        }
+        
+        Push(values*) {
+            return this.InsertAt(this.Length + 1, values*)
+        }
+        
+        Pop() {
+            return this.RemoveAt(this.Length)
+        }
+        
+        _NewEnum() {
+            return new Array.Enumerator(this)
+        }
     }
     
     class Enumerator
@@ -173,12 +205,6 @@ class Array extends Object
             }
         }
     }
-    
-    __new() {
-        ObjSetBase(this._, Array._Indexer)
-    }
-    
-    static _ := MetaClass(Array)
 }
 
 Object__new_(cm, f, this) {
@@ -216,9 +242,9 @@ Object__call_(m, this, k, p*) {
 class Class_Meta_Key {
 }
 Class_Meta(cls) {
-    if ObjHasKey(cls, Class_Meta_Key)
-        return cls[Class_Meta_Key]
-    throw Exception("MetaClass has not been called for class " cls.__class, -1)
+    if !ObjHasKey(cls, Class_Meta_Key)
+        MetaClass(cls)
+    return cls[Class_Meta_Key]
 }
 
 Class_Meta_new(m) {
@@ -288,8 +314,6 @@ Class_Members(cls) {
     if ObjHasKey(cls, Class_Members_Key)
         return cls[Class_Members_Key]
     ObjRawSet(cls, Class_Members_Key, m := Class_Members_new())
-    if bcls := ObjGetBase(cls)
-        Class_Members_SetBase(m, bcls)
     e := ObjNewEnum(cls)
     while e.Next(k, v) {
         if type(v) = "Func" {  ; Not isFunc() - don't want func NAMES, only true methods.
@@ -329,34 +353,47 @@ Class_DeleteMembers(cls, m) {
     ForEachDelete(m.set, cls)
 }
 
+class MetaClass_Instance_Key {
+}
 MetaClass(cls) {
+    ; Determine base class.
+    cls_base := ObjGetBase(cls)  ; cls.base won't work for subclasses if MetaClass(superclass) has been called.
+    if !(cls_base is _ClassInitMetaFunctions) ; i.e. derived from, not the _Class itself.
+        cls_base := ""
+    ; Retrieve and remove internal properties.
+    _instance := ObjDelete(cls, "_instance")
+    _static := ObjDelete(cls, "_static")
+    ; Retrieve and remove nested classes.
+    _data := Object_v()
+    e := ObjNewEnum(cls)
+    while e.Next(k, v) {
+        if type(v) == "Class"  ; Nested class (static variables should be in _static).
+            ObjRawSet(_data, k, v)
+    }
+    ForEachDelete(_data, cls)
     ; Construct meta-object for instance prototype.
-    m := Class_Members(cls)
+    m := _instance ? Class_Members(_instance) : Class_Members_new()
     if !m.get["base"]
         m.get["base"] := Func("Object_ReturnArg1").Bind(cls)
-    if !m.set["base"]
+    if !cls_base && !m.set["base"]
         m.set["base"] := Func("Object_SetBase")
+    if cls_base && cls_base[MetaClass_Instance_Key]
+        Class_Members_SetBase(m, cls_base[MetaClass_Instance_Key])
     cm := Class_Meta_new(m)
     cm.base := cls  ; For type identity ('is').
     ObjRawSet(cls, Class_Meta_Key, cm)
-    ; Remove instance members from class object.
-    Class_DeleteMembers(cls, cm.m)
+    ObjRawSet(cls, MetaClass_Instance_Key, _instance)
     ; Construct meta-object for class/static members.
-    if st := ObjDelete(cls, "_static") {
-        m := Class_Members(st)
+    if _static {
+        m := Class_Members(_static)
+        _static.base := Class[MetaClass_Instance_Key]
     }
     else {
         m := Class_Members_new()
     }
-    Class_Members_SetBase(m, Class)
-    data := Object_v()
-    e := ObjNewEnum(cls)
-    while e.Next(k, v) {
-        if type(v) == "Class"  ; Nested class (static variables should be in _static).
-            ObjRawSet(data, k, v)
-    }
-    ForEachDelete(data, cls)
-    cls_base := ObjGetBase(cls)  ; cls.base won't work right now for subclasses of Object.
+    if !ObjHasKey(Class, MetaClass_Instance_Key)
+        MetaClass(Class)
+    Class_Members_SetBase(m, Class[MetaClass_Instance_Key])
     m.get["base"] := Func("Object_ReturnArg1").Bind(cls_base)
     m.set["base"] := Func("Object_Throw").Bind("Base class cannot be changed", -2)
     ; mcm defines the interface of the class object (not instances).
@@ -368,7 +405,7 @@ MetaClass(cls) {
     proto := Object_v()
     proto._ := Object_v()
     ObjSetBase(proto, cm)
-    cm.owner := &proto
+    ObjRawSet(cm, "owner", &proto)
     ObjRawSet(cls, "prototype", proto)
     ; __new and __init must be set here because __call isn't called for them,
     ; and we need to do special stuff anyway.  These are called with 'this' set
@@ -384,13 +421,13 @@ MetaClass(cls) {
         ObjRawSet(cls, "__init", Func("Object__init_").Bind(cm.m.call["__init"]))
     mcm.base := cls_base  ; For type identity of instances ('is').
     ObjSetBase(cls, mcm)
-    if st && st.__init {
-        ; Currently var initializers use ObjRawSet(), but might refer to
-        ; 'this' explicitly and therefore may require this._ to be set.
-        ObjRawSet(cls, "_", data)
-        st.__init.call(data)
+    ; Currently var initializers use ObjRawSet(), but might refer to
+    ; 'this' explicitly and therefore may require this._ to be set.
+    ObjRawSet(cls, "_", _data)
+    if _static && _static.__init {
+        _static.__init.call(_data)
     }
-    return data  ; Caller stores this in cls._.
+    return _data  ; Caller may also store this in cls._ (redundantly).
 }
 
 

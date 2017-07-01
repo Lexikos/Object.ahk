@@ -122,15 +122,16 @@ class TestClass extends Object {
             }
         }
     }
-    imeth() {
-        return "instance method"
-    }
-    iprop {
-        get {
-            return "instance property"
+    class _instance {
+        imeth() {
+            return "instance method"
+        }
+        iprop {
+            get {
+                return "instance property"
+            }
         }
     }
-    static _ := MetaClass(TestClass)
 }
 
 TestSubClass:  ; FIXME: Currently fails because base.x() can't find x in the base (or _static has no base).
@@ -144,10 +145,11 @@ class TestSubClass extends TestClass {
             return base.smeth() " (subclassed)"
         }
     }
-    imeth() {
-        return base.imeth() " (subclassed)"
+    class _instance {
+        imeth() {
+            return base.imeth() " (subclassed)"
+        }
     }
-    static _ := MetaClass(TestSubClass)
 }
 
 TestDefineMeth:
@@ -172,7 +174,7 @@ Test_get_method(name, this) {
     return ObjBindMethod(this, name)
 }
 class CDM extends Object {
-    static _ := MetaClass(CDM)
+    
 }
 
 TestDefineProp:
@@ -199,7 +201,7 @@ Test_set(arg1, this, value) {
     return arg1 " := " value
 }
 class CDP extends Object {
-    static _ := MetaClass(CDP)
+    
 }
 
 TestHasMethod:
@@ -210,6 +212,7 @@ x.adhocprop := 2
 Test x.HasMethod('prop') x.HasMethod('initprop') x.HasMethod('adhocprop')
 return
 class TestHasMethod extends Object {
+class _instance {
     meth() {
         MsgBox "meth"
     }
@@ -219,8 +222,7 @@ class TestHasMethod extends Object {
         }
     }
     initprop := 1
-    static _ := MetaClass(TestHasMethod)
-}
+}}
 
 TestHasProp:
 Test Object.HasProperty('HasProperty') Object.HasMethod('HasProperty')
@@ -235,6 +237,7 @@ Test ObjHasKey(x, 'initprop') ObjHasKey(x, 'adhocprop')
 Test x.HasProperty('meth') x.HasProperty('noprop') x.HasProperty(1)
 return
 class TestHasProp extends Object {
+class _instance {
     initprop := 1
     propget {
         get {
@@ -259,8 +262,7 @@ class TestHasProp extends Object {
     meth() {
         MsgBox "meth"
     }
-    static _ := MetaClass(TestHasProp)
-}
+}}
 
 Test(v) {
     e := Exception('', -1)
