@@ -427,7 +427,7 @@ MetaClass(cls) {
     ; Currently var initializers use ObjRawSet(), but might refer to
     ; 'this' explicitly and therefore may require this._ to be set.
     ObjRawSet(cls, "_", _data)
-    if _static && _static.__init {
+    if _static && type(_static.__init) == "Func" {
         _static.__init.call(_data)
     }
     return _data  ; Caller may also store this in cls._ (redundantly).
