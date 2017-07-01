@@ -80,6 +80,7 @@ Test (new TestClass).is(TestClass)
 Test (new TestClass).is(Object)
 Test TestClass.is(Object) TestSubClass.is(TestClass)
 Test TestClass.is(Class) (new TestClass).is(Class)
+Test (1).is('integer') (0.1).is('float') 'abc'.is('alnum') 'xyz'.is('xdigit')
 return
 
 TestIs:

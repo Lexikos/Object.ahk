@@ -101,7 +101,7 @@ class Class extends Object
 }
 
 Value__call(value, n, p*) {
-    static _ := ("".base.is := Func("Value__call"), 0)
+    static _ := ("".base.__call := Func("Value__call"), 0)
     if n = "is"
         return value is p[1]
 }
