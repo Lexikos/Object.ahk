@@ -419,9 +419,9 @@ MetaClass(cls) {
         ; mcm.__init := Func("Object__init_").Bind(cm.m.call["__init"])
     ; They're set on the class itself rather than mcm because base.__init()
     ; would otherwise cause infinite recursion.
-    ObjRawSet(cls, "__new", Func("Object__new_").Bind(cm, cm.m.call["__new"]))
+    ObjRawSet(mcm, "__new", Func("Object__new_").Bind(cm, cm.m.call["__new"]))
     if cm.m.call["__init"]
-        ObjRawSet(cls, "__init", Func("Object__init_").Bind(cm.m.call["__init"]))
+        ObjRawSet(mcm, "__init", Func("Object__init_").Bind(cm.m.call["__init"]))
     mcm.base := cls_base  ; For type identity of instances ('is').
     ObjSetBase(cls, mcm)
     ; Currently var initializers use ObjRawSet(), but might refer to

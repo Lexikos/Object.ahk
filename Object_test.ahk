@@ -11,10 +11,27 @@
 ; gosub TestIs2
 ; gosub TestCurly
 ; gosub TestSquare
-gosub TestArrayFor
+; gosub TestArrayFor
 ; gosub TestArrayLength
 ; gosub TestArrayIndex
+gosub TestNew
 ExitApp
+
+TestNew:
+Test (x := new TestNew).x x.y
+try
+    Test TestNew.__new() TestNew.x
+catch
+    D "__new is not a static method"
+return
+class TestNew extends Object {
+    class _instance {
+        y := "__init is working. "
+        __new() {
+            this.x := "__new is working. "
+        }
+    }
+}
 
 TestArrayIndex:
 Test x := ['A','B','C']
