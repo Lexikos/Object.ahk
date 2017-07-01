@@ -11,9 +11,9 @@
 ; gosub TestIs2
 ; gosub TestCurly
 ; gosub TestSquare
-; gosub TestArrayFor
+gosub TestArrayFor
 ; gosub TestArrayLength
-gosub TestArrayIndex
+; gosub TestArrayIndex
 ExitApp
 
 TestArrayIndex:
@@ -70,7 +70,7 @@ TestCurly:
 x := {a: 1, b: 2}
 Test (x is Arrax) (x is Object)
 Test x.HasKey('a') x.HasProperty('a') ObjHasKey(x, 'a')
-Test x.a x.b x['a']
+Test x.a x.b x._['a']
 return
 
 TestIs2:

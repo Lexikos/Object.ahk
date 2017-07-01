@@ -116,7 +116,7 @@ class Array extends Object
         
         Length {
             get {
-                return this._['length'] || ObjLength(this._)
+                return this._['length']
             }
             set {
                 if !(value is 'integer') || value < 0
@@ -183,7 +183,7 @@ class Array extends Object
         }
         Next1(ByRef a) {
             a := this._[++this.n]
-            return this.n <= this._.Length()
+            return this.n <= this._.length
         }
         Next2(ByRef a, ByRef b) {
             return this.e.Next(a, b)
@@ -191,17 +191,20 @@ class Array extends Object
     }
     
     class _Indexer {
+        length {
+            get {
+                return ObjLength(this)
+            }
+        }
         __get(index, p*) {
             if index <= 0 && index is 'integer' {
-                len := this.HasKey('length') ? this.length : this.Length()
-                return this[len + index + 1, p*]
+                return this[this.length + index + 1, p*]
             }
         }
         __set(index, p*) {
             if index <= 0 && index is 'integer' && p.Length() {
-                len := this.HasKey('length') ? this.length : this.Length()
                 value := p.Pop()
-                return this[len + index + 1, p*] := value
+                return this[this.length + index + 1, p*] := value
             }
         }
     }
