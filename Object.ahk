@@ -2,8 +2,11 @@
 class _ClassInitMetaFunctions
 {
     __init() {
-        ObjRawSet(this, "_", MetaClass(this))
-        cm := ObjGetBase(this.prototype)
+        if ObjHasKey(this, "__Class")
+            throw Exception(A_ThisFunc " unexpectedly called on a class", -1)
+        cls := ObjGetBase(this)
+        MetaClass(cls)
+        cm := ObjGetBase(cls.prototype)
         if f := cm.m.call["__init"]
             f.call(this)
     }
@@ -422,6 +425,8 @@ MetaClass(cls) {
     ObjRawSet(mcm, "__new", Func("Object__new_").Bind(cm, cm.m.call["__new"]))
     if cm.m.call["__init"]
         ObjRawSet(mcm, "__init", Func("Object__init_").Bind(cm.m.call["__init"]))
+    else
+        ObjRawSet(mcm, "__init", Func("Object_ReturnArg1")) ; Must define __init to override _ClassInitMetaFunctions.
     mcm.base := cls_base  ; For type identity of instances ('is').
     ObjSetBase(cls, mcm)
     ; Currently var initializers use ObjRawSet(), but might refer to

@@ -14,8 +14,39 @@
 ; gosub TestArrayFor
 ; gosub TestArrayLength
 ; gosub TestArrayIndex
-gosub TestNew
+; gosub TestNew
+gosub TestSuper
 ExitApp
+
+TestSuper:
+Test (x := new TestSuperA).Meth()
+Test (x := new TestSuperB).Meth()
+Test (x := new TestSuperC).Meth()
+return
+class TestSuperA extends Object {
+    class _instance {
+        Meth() {
+            return A_ThisFunc "`n"
+            . base.Meth()
+        }
+    }
+}
+class TestSuperB extends TestSuperA {
+    class _instance {
+        Meth() {
+            return A_ThisFunc "`n"
+            . base.Meth()
+        }
+    }
+}
+class TestSuperC extends TestSuperB {
+    class _instance {
+        Meth() {
+            return A_ThisFunc "`n"
+            . base.Meth()
+        }
+    }
+}
 
 TestNew:
 Test (x := new TestNew).x x.y
