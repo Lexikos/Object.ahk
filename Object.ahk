@@ -238,6 +238,40 @@ class Array extends Object
     }
 }
 
+class Map_Key {
+}
+class Map extends Object
+{
+    class _instance
+    {
+        __new() {
+            ObjRawSet(this, Map_Key, {})
+        }
+        
+        Has(key) {
+            return ObjHasKey(this[Map_Key], RegExReplace(key, "\p{Lu}|\x01", chr(1) "$0"))
+        }
+        
+        Get(key) {
+            return this[Map_Key, RegExReplace(key, "\p{Lu}|\x01", chr(1) "$0")]
+        }
+        
+        Set(key, value) {
+            ObjRawSet(this[Map_Key], RegExReplace(key, "\p{Lu}|\x01", chr(1) "$0"), value)
+            return value
+        }
+        
+        Clone() {
+            ObjRawSet(cl := base.Clone(), Map_Key, ObjClone(this[Map_Key]))
+            return cl
+        }
+        
+        _NewEnum() {
+            return ObjNewEnum(this._)  ; TODO
+        }
+    }
+}
+
 Object__new_(pm, f, this) {
     self := Object_v()
     ; This reuses the original object for data storage, since it already
