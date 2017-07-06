@@ -20,8 +20,8 @@ ExitApp
 
 TestSuper:
 Test (x := new TestSuperA).Meth()
-Test (x := new TestSuperB).Meth()
 Test (x := new TestSuperC).Meth()
+Test (x := new TestSuperB).Meth()
 return
 class TestSuperA extends Object {
     class _instance {

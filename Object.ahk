@@ -1,26 +1,29 @@
 
 class _ClassInitMetaFunctions
 {
+    ; Called on instances:
     __init() {
         if ObjHasKey(this, "__Class")
             throw Exception(A_ThisFunc " unexpectedly called on a class", -1)
         cls := ObjGetBase(this)
-        MetaClass(cls)
-        pm := ObjGetBase(cls.prototype)
+        if !ObjHasKey(cls, "__Class")
+            throw Exception("new unexpectedly used with a non-class", -1)
+        pm := Class_ProtoMeta(cls)
         if f := pm.m.call["__init"]
             f.call(this)
     }
+    ; Called on classes (once only):
     __get(p*) {
-        ObjRawSet(this, "_", MetaClass(this))
+        MetaClass(this)
         return this[p*]
     }
     __set(p*) {
-        ObjRawSet(this, "_", MetaClass(this))
+        MetaClass(this)
         v := p.Pop()
         return this[p*] := v
     }
     __call(p*) {
-        ObjRawSet(this, "_", MetaClass(this))
+        MetaClass(this)
         m := p.RemoveAt(1)
         return this[m](p*)
     }
@@ -37,6 +40,16 @@ class Object extends _ClassInitMetaFunctions
     
     class _instance
     {
+        base {
+            set {
+                if value is Object && ObjHasKey(value, "__Class") || value = Object
+                    ObjSetBase(this, Class_ProtoMeta(value))
+                else
+                    ObjSetBase(this, value)
+                return value
+            }
+        }
+        
         is(type) {
             return this is type
         }
@@ -242,7 +255,7 @@ Object__set_(m, this, k, p*) {
 Object__call_(m, this, k, p*) {
     if f := m[k]
         return f.call(this, p*)
-    throw Exception("No such method", -2, k)
+    throw Exception("No such method", -1, k)
 }
 
 class Class_ProtoMeta_Key {
@@ -281,14 +294,6 @@ Object_ReturnArg1(arg1) {
 
 Object_Throw(message, what) {
     throw Exception(message, what)
-}
-
-Object_SetBase(this, newbase) {
-    if newbase is Object && ObjHasKey(newbase, "__Class") || newbase = Object
-        ObjSetBase(this, Class_ProtoMeta(newbase))
-    else
-        ObjSetBase(this, newbase)
-    return newbase
 }
 
 class Class_Members_Key {
@@ -364,8 +369,10 @@ class Class_Instance_Key {
 MetaClass(cls) {
     ; Determine base class.
     cls_base := ObjGetBase(cls)  ; cls.base won't work for subclasses if MetaClass(superclass) has been called.
-    if !(cls_base is _ClassInitMetaFunctions) ; i.e. derived from, not the _Class itself.
-        cls_base := ""
+    if !cls_base || !ObjHasKey(cls_base, "__Class")
+        throw Exception("Invalid parameter #1", -1, cls)
+    if !ObjHasKey(cls_base, Class_Instance_Key) && cls_base != _ClassInitMetaFunctions
+        MetaClass(cls_base)  ; Initialize base class first.
     ; Retrieve and remove internal properties.
     _instance := ObjDelete(cls, "_instance")
     _static := ObjDelete(cls, "_static")
@@ -381,10 +388,10 @@ MetaClass(cls) {
     m := _instance ? Class_Members(_instance) : Members_new()
     if !m.get["base"]
         m.get["base"] := Func("Object_ReturnArg1").Bind(cls)
-    if !cls_base && !m.set["base"]
-        m.set["base"] := Func("Object_SetBase")
-    if cls_base && cls_base[Class_Instance_Key]
-        Members_Inherit(m, cls_base[Class_Instance_Key])
+    if base_instance := cls_base[Class_Instance_Key] {
+        Members_Inherit(m, base_instance)
+        _instance.base := base_instance
+    }
     pm := MetaObject_new(m)
     pm.base := cls  ; For type identity ('is').
     ObjRawSet(cls, Class_ProtoMeta_Key, pm)
@@ -413,27 +420,20 @@ MetaClass(cls) {
     ObjSetBase(proto, pm)
     ObjRawSet(pm, "owner", &proto)
     ObjRawSet(cls, "prototype", proto)
-    ; __new and __init must be set here because __call isn't called for them,
-    ; and we need to do special stuff anyway.  These are called with 'this' set
-    ; to the new instance, and shouldn't be callable by the script since __call
-    ; would be called in those cases.
-    ; cm.__new := Func("Object__new_").Bind(pm, pm.m.call["__new"])  ; This is called on class.base because the instance won't have a meta-object until after this is called.
-    ; if pm.m.call["__init"]
-        ; cm.__init := Func("Object__init_").Bind(pm.m.call["__init"])
+    ; The `new` operator skips __call and thereby calls the __new meta-function
+    ; we define here.  This does some tricky work and then calls the __new method
+    ; defined by the class, if any.  __init can't be handled this way since it
+    ; may be the means by which MetaClass() is called, and setting it for a base
+    ; class may prevent initialization of subclasses.
     ObjRawSet(cm, "__new", Func("Object__new_").Bind(pm, pm.m.call["__new"]))
-    if pm.m.call["__init"]
-        ObjRawSet(cm, "__init", Func("Object__init_").Bind(pm.m.call["__init"]))
-    else
-        ObjRawSet(cm, "__init", Func("Object_ReturnArg1")) ; Must define __init to override _ClassInitMetaFunctions.
     cm.base := cls_base  ; For type identity of instances ('is').
     ObjSetBase(cls, cm)
     ; Currently var initializers use ObjRawSet(), but might refer to
     ; 'this' explicitly and therefore may require this._ to be set.
     ObjRawSet(cls, "_", _data)
-    if _static && type(_static.__init) == "Func" {
+    if _static && ObjHasKey(_static, "__init") && type(_static.__init) == "Func" {
         _static.__init.call(_data)
     }
-    return _data  ; Caller may also store this in cls._ (redundantly).
 }
 
 
