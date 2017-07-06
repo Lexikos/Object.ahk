@@ -60,6 +60,7 @@ class Object extends _ClassInitMetaFunctions
                 || ObjHasKey(this._, name)
                 ; || ObjHasKey(this, name)
         }
+        
         HasMethod(name) {
             mo := ObjGetBase(this)
             return isObject(mo.m.call[name])
@@ -79,10 +80,21 @@ class Object extends _ClassInitMetaFunctions
             Members_DefMeth(mo.m, name, func)
         }
         
-        ; Standard object methods
-        Delete(p*) {
-            return ObjDelete(this._, p*)
+        DeleteProperty(name) {
+            if mo := Own_Meta(this, false) {
+                ObjDelete(mo.m.get, name)
+                ObjDelete(mo.m.set, name)
+            }
+            ObjDelete(this._, name)
         }
+        
+        DeleteMethod(name) {
+            if mo := Own_Meta(this, false) {
+                ObjDelete(mo.m.call, name)
+            }
+        }
+        
+        ; Standard object methods
         SetCapacity(p*) {
             return ObjSetCapacity(this._, p*)
         }
@@ -275,11 +287,13 @@ MetaObject_new(m) {
     return mo
 }
 
-Own_Meta(this) {
+Own_Meta(this, maycreate:=true) {
     mo := ObjGetBase(this)  ; It is assumed that 'this' is a properly constructed Object, with a meta-object.
     if mo.owner == &this
         return mo
     ; else: mo is shared.
+    if !maycreate
+        return
     m := Members_new()
     tm := MetaObject_new(m)
     tm.owner := &this
