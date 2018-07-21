@@ -245,7 +245,7 @@ class Map extends Object
     class _instance
     {
         __new() {
-            ObjRawSet(this, Map_Key, {})
+            ObjRawSet(this, Map_Key, Object_v())
         }
         
         Has(key) {
@@ -259,6 +259,15 @@ class Map extends Object
         Set(key, value) {
             ObjRawSet(this[Map_Key], RegExReplace(key, "\p{Lu}|\x01", chr(1) "$0"), value)
             return value
+        }
+        
+        Count {
+            get {
+                return ObjCount(this[Map_Key])
+            }
+            set {
+                throw Exception("Count is read-only", -1)
+            }
         }
         
         Clone() {
@@ -513,6 +522,10 @@ ObjSetBase(obj, newbase) {
     NumPut(newbase, &obj, 2*A_PtrSize)
     if oldbase
         ObjRelease(oldbase)
+}
+
+ObjCount(obj) {
+    return NumGet(&obj+4*A_PtrSize)
 }
 
 Object(p*) {

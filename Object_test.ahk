@@ -15,8 +15,15 @@
 ; gosub TestArrayLength
 ; gosub TestArrayIndex
 ; gosub TestNew
-gosub TestSuper
+; gosub TestSuper
+gosub TestMap
 ExitApp
+
+TestMap:
+m := new Map
+Test (m.set("abc", 42), m.set("ABC", 24), m.get("abc") ' ' m.get("ABC"))
+Test m.Count
+return
 
 TestSuper:
 Test (x := new TestSuperA).Meth()
