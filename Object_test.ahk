@@ -1,21 +1,21 @@
 #Include Object.ahk
 
-; gosub TestHasProp
-; gosub TestHasMethod
-; gosub TestDefineProp
-; gosub TestDefineMeth
-; gosub TestClass
-; gosub TestSubClass
-; gosub TestBase
-; gosub TestIs
-; gosub TestIs2
-; gosub TestCurly
-; gosub TestSquare
-; gosub TestArrayFor
-; gosub TestArrayLength
-; gosub TestArrayIndex
-; gosub TestNew
-; gosub TestSuper
+gosub TestHasProp
+gosub TestHasMethod
+gosub TestDefineProp
+gosub TestDefineMeth
+gosub TestClass
+gosub TestSubClass
+gosub TestBase
+gosub TestIs
+gosub TestIs2
+gosub TestCurly
+gosub TestSquare
+gosub TestArrayFor
+gosub TestArrayLength
+gosub TestArrayIndex
+gosub TestNew
+gosub TestSuper
 gosub TestMap
 ExitApp
 
@@ -56,6 +56,7 @@ class TestSuperC extends TestSuperB {
 }
 
 TestNew:
+MetaClass(TestNew)
 Test (x := new TestNew).x x.y
 try
     Test TestNew.__new() TestNew.x
@@ -123,7 +124,7 @@ return
 
 TestCurly:
 x := {a: 1, b: 2}
-Test (x is Arrax) (x is Object)
+Test (x is Array) (x is Object)
 Test x.HasKey('a') x.HasProperty('a') ObjHasKey(x, 'a')
 Test x.a x.b x._['a']
 return
@@ -159,6 +160,7 @@ catch Exception
 return
 
 TestClass:
+MetaClass(TestClass)
 x := new TestClass
 Test TestClass.smeth() "," TestClass.sprop
 Test x.imeth() "," x.iprop
@@ -191,6 +193,7 @@ class TestClass extends Object {
 }
 
 TestSubClass:  ; FIXME: Currently fails because base.x() can't find x in the base (or _static has no base).
+MetaClass(TestSubClass)
 Test TestSubClass.smeth()
 x := new TestSubClass
 Test x.imeth()
@@ -209,6 +212,7 @@ class TestSubClass extends TestClass {
 }
 
 TestDefineMeth:
+MetaClass(CDM)
 x := new CDM, y := new CDM
 x.name := "x", y.name := "y"
 x.DefineMethod("meth", Func("Test_call"))
@@ -234,13 +238,14 @@ class CDM extends Object {
 }
 
 TestDefineProp:
+MetaClass(CDP)
 x := new CDP, y := new CDP
 x.DefineProperty("pg", {get: Func("Test_get").Bind("pg")})
-Test x.pg " " (x.pg := 100) " " x.pg
+Test x.pg "," (x.pg := 100) "," x.pg
 x.DefineProperty("pgs", {get: Func("Test_get").Bind("pgs"), set: Func("Test_set").Bind("pgs")})
-Test x.pgs " " (x.pgs := 200) " " x.pgs
+Test x.pgs "," (x.pgs := 200) "," x.pgs
 x.defineProperty("ps", {set: Func("Test_set").Bind("ps")})
-Test x.ps " " (x.ps := 300) " " x.ps
+Test x.ps "," (x.ps := 300) "," x.ps
 Test y.pg
 Test x.HasProperty("pg") y.HasProperty("pg") CDP.HasProperty("pg")
 CDP.DefineProperty("sprop", {get: Func("Test_get").Bind("sprop")})
@@ -254,6 +259,7 @@ Test_get(arg1, this) {
     return arg1 "(" this._[arg1] ")"
 }
 Test_set(arg1, this, value) {
+    this._[arg1] := value
     return arg1 " := " value
 }
 class CDP extends Object {
@@ -261,6 +267,7 @@ class CDP extends Object {
 }
 
 TestHasMethod:
+MetaClass(TestHasMethod)
 Test Object.HasMethod('HasMethod') TestHasMethod.HasMethod('HasMethod')
 x := new TestHasMethod
 Test x.HasMethod('meth') TestHasMethod.HasMethod('meth')
@@ -281,6 +288,7 @@ class _instance {
 }}
 
 TestHasProp:
+MetaClass(TestHasProp)
 Test Object.HasProperty('HasProperty') Object.HasMethod('HasProperty')
 Test TestHasProp.HasMethod('HasProperty')
 Test TestHasProp.HasProperty('propget')

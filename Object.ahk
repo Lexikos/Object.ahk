@@ -151,7 +151,7 @@ class Array extends Object
                     throw Exception("Invalid value", -1, value)
                 n := ObjLength(this._)
                 if value < n
-                    this.Delete(value + 1, n)
+                    ObjDelete(this._, value + 1, n)
                 this._['length'] := value
                 return value
             }
@@ -340,7 +340,7 @@ Own_Meta(this, maycreate:=true) {
     m := Members_new()
     tm := MetaObject_new(m)
     tm.owner := &this
-    Members_Inherit(m, mo)
+    Members_Inherit(m, mo.m)
     ObjSetBase(this, tm)
     return tm
 }
@@ -360,23 +360,22 @@ Members_new() {
     m.get := Object_v()
     m.set := Object_v()
     m.call := Object_v()
-    ObjRawSet(m.get, "base", "")
-    ObjRawSet(m.set, "base", "")
-    ObjRawSet(m.call, "base", "")
+    ; ObjRawSet(m.get, "base", "") ; Removes the need for ObjRawSet elsewhere, but makes debugging harder.
+    ; ObjRawSet(m.set, "base", "")
+    ; ObjRawSet(m.call, "base", "")
     return m
 }
-Members_Inherit(m, b) {
-    bm := Class_Members(b)
+Members_Inherit(m, bm) {
     ObjSetBase(m.get, bm.get)
     ObjSetBase(m.set, bm.set)
     ObjSetBase(m.call, bm.call)
 }
 Members_DefProp(m, name, prop) {
-    (get := prop.get) && (m.get[name] := get)
-    (set := prop.set) && (m.set[name] := set)
+    (get := prop.get) && ObjRawSet(m.get, name, get)
+    (set := prop.set) && ObjRawSet(m.set, name, set)
 }
 Members_DefMeth(m, name, func) {
-    m.call[name] := func
+    ObjRawSet(m.call, name, func)
 }
 Class_Members(cls) {
     if ObjHasKey(cls, Class_Members_Key)
@@ -443,11 +442,11 @@ MetaClass(cls) {
     ForEachDelete(_data, cls)
     ; Construct meta-object for instance prototype.
     m := _instance ? Class_Members(_instance) : Members_new()
-    if !m.get["base"]
-        m.get["base"] := Func("Object_ReturnArg1").Bind(cls)
+    if !ObjHasKey(m.get, "base")
+        ObjRawSet(m.get, "base", Func("Object_ReturnArg1").Bind(cls))
     if base_instance := cls_base[Class_Instance_Key] {
-        Members_Inherit(m, base_instance)
-        _instance.base := base_instance
+        Members_Inherit(m, Class_Members(base_instance))
+        _instance ? _instance.base := base_instance : 0
     }
     pm := MetaObject_new(m)
     pm.base := cls  ; For type identity ('is').
@@ -463,9 +462,9 @@ MetaClass(cls) {
     }
     if !ObjHasKey(Class, Class_Instance_Key)
         MetaClass(Class)
-    Members_Inherit(m, Class[Class_Instance_Key])
-    m.get["base"] := Func("Object_ReturnArg1").Bind(cls_base)
-    m.set["base"] := Func("Object_Throw").Bind("Base class cannot be changed", -2)
+    Members_Inherit(m, Class_Members(Class[Class_Instance_Key]))
+    ObjRawSet(m.get, "base", Func("Object_ReturnArg1").Bind(cls_base))
+    ObjRawSet(m.set, "base", Func("Object_Throw").Bind("Base class cannot be changed", -2))
     ; cm defines the interface of the class object (not instances).
     cm := MetaObject_new(m)
     cm.owner := &cls
