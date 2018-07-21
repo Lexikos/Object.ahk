@@ -497,32 +497,6 @@ MetaClass(cls) {
 ; Bad code! Version-dependent. Relies on undocumented stuff.
 ;
 
-ObjGetBase(obj) {
-    try
-        ObjGetCapacity(obj) ; Type-check.
-    catch
-        throw Exception("Invalid parameter #1", -1, obj)
-    if thebase := NumGet(&obj + 2*A_PtrSize)
-        return Object(thebase)
-}
-
-ObjSetBase(obj, newbase) {
-    try
-        ObjGetCapacity(obj) ; Type-check.
-    catch
-        throw Exception("Invalid parameter #1", -1, obj)
-    if newbase {
-        if !isObject(newbase)
-            throw Exception("Invalid parameter #2", -1, newbase)
-        ObjAddRef(&newbase)
-        newbase := &newbase
-    }
-    oldbase := NumGet(&obj, 2*A_PtrSize)
-    NumPut(newbase, &obj, 2*A_PtrSize)
-    if oldbase
-        ObjRelease(oldbase)
-}
-
 ObjCount(obj) {
     return NumGet(&obj+4*A_PtrSize)
 }
