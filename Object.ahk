@@ -66,6 +66,11 @@ class Object extends _ClassInitMetaFunctions
             return isObject(mo.m.call[name])
         }
         
+        GetMethod(name) {
+            mo := ObjGetBase(this)
+            return mo.m.call[name]
+        }
+        
         DefineProperty(name, prop) {
             if !isObject(prop) || !(prop.get || prop.set)
                 throw Exception("Invalid parameter #2", -2, prop)

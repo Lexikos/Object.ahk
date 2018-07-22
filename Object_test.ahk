@@ -2,6 +2,7 @@
 
 gosub TestHasProp
 gosub TestHasMethod
+gosub TestGetMethod
 gosub TestDefineProp
 gosub TestDefineMeth
 gosub TestClass
@@ -276,6 +277,12 @@ Test_set(arg1, this, value) {
 class CDP extends Object {
     
 }
+
+TestGetMethod:
+x := new Object()
+x.DefineMethod("meth1", Func("Test_call"))
+Test x.GetMethod("meth1").Name
+return
 
 TestHasMethod:
 Test Object.HasMethod('HasMethod') TestHasMethod.HasMethod('HasMethod')
