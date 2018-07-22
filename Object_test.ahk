@@ -190,10 +190,11 @@ class TestClass extends Object {
     }
 }
 
-TestSubClass:  ; FIXME: Currently fails because base.x() can't find x in the base (or _static has no base).
+TestSubClass:
 Test TestSubClass.smeth()
-x := new TestSubClass
-Test x.imeth()
+Test (new TestSubClass).imeth()
+Test TestSubSubClass.smeth()
+Test (new TestSubSubClass).imeth()
 return
 class TestSubClass extends TestClass {
     class _static {
@@ -204,6 +205,21 @@ class TestSubClass extends TestClass {
     class _instance {
         imeth() {
             return base.imeth() " (subclassed)"
+        }
+    }
+}
+class TestSubClass2 extends TestClass {
+    ; Intentionally empty (no _static/_instance).
+}
+class TestSubSubClass extends TestSubClass2 {
+    class _static {
+        smeth() {
+            return base.smeth() " (subsubclassed)"
+        }
+    }
+    class _instance {
+        imeth() {
+            return base.imeth() " (subsubclassed)"
         }
     }
 }

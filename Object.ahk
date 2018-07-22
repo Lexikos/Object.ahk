@@ -431,6 +431,8 @@ Class_DeleteMembers(cls, m) {
 
 class Class_Instance_Key {
 }
+class Class_Static_Key {
+}
 MetaClass(cls) {
     ; Determine base class.
     cls_base := ObjGetBase(cls)  ; cls.base won't work for subclasses if MetaClass(superclass) has been called.
@@ -460,14 +462,17 @@ MetaClass(cls) {
     pm := MetaObject_new(m)
     pm.base := cls  ; For type identity ('is').
     ObjRawSet(cls, Class_ProtoMeta_Key, pm)
-    ObjRawSet(cls, Class_Instance_Key, _instance)
+    ObjRawSet(cls, Class_Instance_Key, _instance || base_instance)
     ; Construct meta-object for class/static members.
+    cls_base_static := cls_base[Class_Static_Key] || Class[Class_Instance_Key]
     if _static {
         m := Class_Members(_static)
-        _static.base := Class[Class_Instance_Key]
+        ObjSetBase(_static, cls_base_static)  ; For base.method(); but don't inherit members.
+        ObjRawSet(cls, Class_Static_Key, _static)
     }
     else {
         m := Members_new()
+        ObjRawSet(cls, Class_Static_Key, cls_base_static)
     }
     if !ObjHasKey(Class, Class_Instance_Key)
         MetaClass(Class)
