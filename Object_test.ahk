@@ -56,7 +56,6 @@ class TestSuperC extends TestSuperB {
 }
 
 TestNew:
-MetaClass(TestNew)
 Test (x := new TestNew).x x.y
 try
     Test TestNew.__new() TestNew.x
@@ -160,7 +159,6 @@ catch Exception
 return
 
 TestClass:
-MetaClass(TestClass)
 x := new TestClass
 Test TestClass.smeth() "," TestClass.sprop
 Test x.imeth() "," x.iprop
@@ -193,7 +191,6 @@ class TestClass extends Object {
 }
 
 TestSubClass:  ; FIXME: Currently fails because base.x() can't find x in the base (or _static has no base).
-MetaClass(TestSubClass)
 Test TestSubClass.smeth()
 x := new TestSubClass
 Test x.imeth()
@@ -212,7 +209,6 @@ class TestSubClass extends TestClass {
 }
 
 TestDefineMeth:
-MetaClass(CDM)
 x := new CDM, y := new CDM
 x.name := "x", y.name := "y"
 x.DefineMethod("meth", Func("Test_call"))
@@ -238,7 +234,6 @@ class CDM extends Object {
 }
 
 TestDefineProp:
-MetaClass(CDP)
 x := new CDP, y := new CDP
 x.DefineProperty("pg", {get: Func("Test_get").Bind("pg")})
 Test x.pg "," (x.pg := 100) "," x.pg
@@ -267,7 +262,6 @@ class CDP extends Object {
 }
 
 TestHasMethod:
-MetaClass(TestHasMethod)
 Test Object.HasMethod('HasMethod') TestHasMethod.HasMethod('HasMethod')
 x := new TestHasMethod
 Test x.HasMethod('meth') TestHasMethod.HasMethod('meth')
@@ -288,7 +282,6 @@ class _instance {
 }}
 
 TestHasProp:
-MetaClass(TestHasProp)
 Test Object.HasProperty('HasProperty') Object.HasMethod('HasProperty')
 Test TestHasProp.HasMethod('HasProperty')
 Test TestHasProp.HasProperty('propget')

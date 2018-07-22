@@ -296,21 +296,27 @@ Object__new_(pm, f, this) {
 Object__init_(f, this) {
     f.call(this)
 }
-Object__get_(m, this, k, p*) {
-    if f := m[k]
-        return f.call(this, p*)
-    return this._[k, p*]
+Object__get_(b, m, this, k, p*) {
+    if &ObjGetBase(this) = b {  ; Workaround for subclasses which haven't yet been metaclass()ed.
+        if f := m[k]
+            return f.call(this, p*)
+        return this._[k, p*]
+    }
 }
-Object__set_(m, this, k, p*) {
-    if f := m[k]
-        return f.call(this, p*)
-    value := p.Pop()
-    return this._[k, p*] := value
+Object__set_(b, m, this, k, p*) {
+    if &ObjGetBase(this) = b {
+        if f := m[k]
+            return f.call(this, p*)
+        value := p.Pop()
+        return this._[k, p*] := value
+    }
 }
-Object__call_(m, this, k, p*) {
-    if f := m[k]
-        return f.call(this, p*)
-    throw Exception("No such method", -1, k)
+Object__call_(b, m, this, k, p*) {
+    if &ObjGetBase(this) = b {
+        if f := m[k]
+            return f.call(this, p*)
+        throw Exception("No such method", -1, k)
+    }
 }
 
 class Class_ProtoMeta_Key {
@@ -321,11 +327,14 @@ Class_ProtoMeta(cls) {
     return cls[Class_ProtoMeta_Key]
 }
 
+class MetaObject {
+    
+}
 MetaObject_new(m) {
     mo := Object_v()
-    mo.__get := Func("Object__get_").Bind(m.get)
-    mo.__set := Func("Object__set_").Bind(m.set)
-    mo.__call := Func("Object__call_").Bind(m.call)
+    mo.__get := Func("Object__get_").Bind(&mo, m.get)
+    mo.__set := Func("Object__set_").Bind(&mo, m.set)
+    mo.__call := Func("Object__call_").Bind(&mo, m.call)
     mo.m := m
     return mo
 }
