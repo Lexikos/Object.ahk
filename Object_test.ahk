@@ -1,357 +1,475 @@
 #Include Object.ahk
+#Include <Yunit\Yunit>
+#Include <Yunit\Stdout>
 
-gosub TestHasProp
-gosub TestHasMethod
-gosub TestGetMethod
-gosub TestDefineProp
-gosub TestDefineMeth
-gosub TestClass
-gosub TestSubClass
-gosub TestBase
-gosub TestIs
-gosub TestIs2
-gosub TestCurly
-gosub TestSquare
-gosub TestArrayFor
-gosub TestArrayLength
-gosub TestArrayIndex
-gosub TestNew
-gosub TestSuper
-gosub TestMap
-ExitApp
+Yunit.Use(YunitStdout).Test(Tests)
 
-TestMap:
-m := new Map
-Test (m.set("abc", 42), m.set("ABC", 24), m.get("abc") ' ' m.get("ABC"))
-Test m.Count
-return
+A(p*) => Yunit.Assert(p*)
 
-TestSuper:
-Test (x := new TestSuperA).Meth()
-Test (x := new TestSuperC).Meth()
-Test (x := new TestSuperB).Meth()
-return
-class TestSuperA extends Object {
-    class _instance {
-        Meth() {
-            return A_ThisFunc "`n"
-            . base.Meth()
+MustThrow(f, p*) {
+    try f.call()
+    catch
+        return
+    Yunit.Assert(false, p*)
+}
+
+class Tests
+{
+    class Object
+    {
+        HasProperty()
+        {
+            A  !Object.HasProperty('HasProperty') && Object.HasMethod('HasProperty')
+            
+            A  TestClass1.HasMethod('HasProperty')
+            A  TestClass1.HasProperty('readonlyprop') = false
+            && TestClass1.HasProperty('writeonlyprop') = false
+            && TestClass1.HasProperty('readwriteprop') = false
+            , "Instance property present in static context"
+            A  TestClass1.HasProperty('method') = false
+            A  TestClass1.HasProperty('nonextant') = false
+            
+            x := new TestClass1
+            A  x.HasProperty('readonlyprop')
+            && x.HasProperty('writeonlyprop')
+            && x.HasProperty('readwriteprop'), "Instance members missing"
+            
+            x.adhocprop := 2
+            A  x.HasProperty('initprop'), "Declared var missing"
+            A  x.HasProperty('adhocprop'), "Undeclared var missing"
+            
+            A  x.HasProperty('nonextant') = false
+            && x.HasProperty('meth') = false
+            && x.HasProperty(1) = false
+            , "Method seen as property"
+        }
+        
+        HasKey()
+        {
+            x := new TestClass1
+            A  x.HasKey('initprop')
+            A  !x.HasKey('adhocprop')
+            x.adhocprop := 2
+            A  x.HasKey('adhocprop')
+        }
+        
+        HasMethod()
+        {
+            A  TestClass1.HasMethod('HasMethod')
+            A  TestClass1.HasMethod('static_method'), "Static method missing"
+            A  TestClass1.HasMethod('method') = false, "Instance method present in static context"
+            
+            x := new TestClass1
+            A  x.HasMethod('HasMethod')
+            A  x.HasMethod('method'), "Instance method missing"
+            A  x.HasMethod('static_method') = false, "Static method present in instance context"
+            
+            x.adhocprop := Func("NullFunc")
+            A  x.HasMethod('readonlyprop') = false
+            && x.HasMethod('initprop') = false
+            && x.HasMethod('adhocprop') = false
+            , "Property seen as method"
+        }
+        
+        GetMethod()
+        {
+            f := TestClass1.GetMethod("static_method")
+            A  type(f) = "Func"
+            A  f.call(TestClass1) = "=static_method()"
+            
+            x := new TestClass1
+            f := x.GetMethod("method")
+            A  type(f) = "Func"
+            A  f.call(x) = "=method()"
+            
+            x := new Object
+            x.DefineMethod("meth1", Func("NullFunc"))
+            A  x.GetMethod("meth1") = Func("NullFunc")
+        }
+        
+        DefineProperty()
+        {
+            x := new TestClassDP, y := new TestClassDP
+            x.DefineProperty("pg", {get: Func("Test_get").Bind("pg")})
+            x.DefineProperty("pgs", {get: Func("Test_get").Bind("pgs"), set: Func("Test_set").Bind("pgs")})
+            x.DefineProperty("ps", {set: Func("Test_set").Bind("ps")})
+            
+            A  x.pg = "pg()"
+            A  (x.pg := 100) = 100  ; Default behaviour: store and return 100
+            A  x.pg = "pg(100)", "Property-get broken by assignment"
+            A  x.pgs = "pgs()"
+            A  (x.pgs := 200) = "pgs := 200"
+            A  x.pgs = "pgs(200)"
+            A  x.ps = ""
+            A  (x.ps := 300) = "ps := 300"
+            A  x.ps = 300
+            A  y.pg = ""
+            
+            A  x.HasProperty("pg")
+            A  y.HasProperty("pg") = false
+            A  TestClassDP.HasProperty("pg") = false
+            
+            TestClassDP.DefineProperty("static1", {get: Func("Test_get").Bind("static1")})
+            A  TestClassDP.HasProperty("static1")
+            A  TestClassDP.static1 = "static1()"
+            A  x.HasProperty("static1") = false
+            A  (x.static1 = "static1()") = false
+            
+            TestClassDP.prototype.DefineProperty("inst1", {get: Func("Test_get").Bind("inst1")})
+            A  x.HasProperty("inst1")
+            A  (x.inst1 = "inst1()")
+            A  TestClassDP.HasProperty("inst1") = false
+            A  (TestClassDP.inst1 = "inst1()") = false
+            
+            Test_get(arg1, this) {
+                return arg1 "(" this._[arg1] ")"
+            }
+            Test_set(arg1, this, value) {
+                this._[arg1] := value
+                return arg1 " := " value
+            }
+        }
+        
+        DefineMethod()
+        {
+            x := new TestClassDM, y := new TestClassDM
+            x.name := "x", y.name := "y"
+            x.DefineMethod("meth", Func("Test_call"))
+            A  x.HasMethod("meth")
+            A  x.HasProperty("meth") = false && x.meth = ""
+            A  y.HasMethod("meth") = false && TestClassDM.HasMethod("meth") = false
+            A  x.meth(1) = "x.called(1)"
+            
+            TestClassDM.DefineMethod("me2", Func("Test_call"))
+            A  TestClassDM.HasMethod("me2")
+            A  x.HasMethod("me2") = false && y.HasMethod("me2") = false
+            A  TestClassDM.me2(2) = ".called(2)"
+            
+            TestClassDM.Prototype.DefineMethod("me3", Func("Test_call"))
+            A  x.HasMethod("me3") && y.HasMethod("me3")
+            A  TestClassDM.HasMethod("me3") = false
+            A  x.me3(3) = "x.called(3)" && y.me3(4) = "y.called(4)"
+            
+            Test_call(this, arg:="") {
+                return this.name ".called(" arg ")"
+            }
+        }
+        
+        BaseProperty()
+        {
+            A  ({}.base = Object)
+            A  ([].base = Array)
+            A  (new Object).base = Object
+            A  (new TestClass1).base = TestClass1
+            A  TestClass1.base = Object
+            
+            MustThrow(() => TestClass.base := 1, "Class.base assignment did not throw")
+        }
+        
+        Is()
+        {
+            x := new Object, y := new Object
+            A  x.is(Object)
+            A  Object.is(Object)
+            A  x.is('object')
+            A  x.is(y) = false
+            A  (new TestClass2).is(TestClass2)
+            A  (new TestClass2).is(Object)
+            A  TestClass2.is(Object)
+            A  TestSubClass.is(TestClass2) = false  ; Not an instance of.
+            A  TestClass2.is(Class) && not (new TestClass2).is(Class)
+            A  (1).is('integer') && (0.1).is('float') && 'abc'.is('alnum')
+            A  'xyz'.is('xdigit') = false
+        }
+    }
+    
+    Subclass()
+    {
+        A  TestClass2.meth() = "static method"
+        A  TestClass2.prop = "static property"
+        A  (new TestClass2).meth() = "instance method"
+        A  (new TestClass2).prop = "instance property"
+        
+        A  TestSubClass.meth() = "static method (subclassed)"
+        A  TestSubClass.prop = "static property (subclassed)"
+        A  (new TestSubClass).meth() = "instance method (subclassed)"
+        A  (new TestSubClass).prop = "instance property (subclassed)"
+        
+        A  TestSubSubClass.meth() = "static method (subsubclassed)"
+        A  TestSubSubClass.prop = "static property (subsubclassed)"
+        A  (new TestSubSubClass).meth() = "instance method (subsubclassed)"
+        A  (new TestSubSubClass).prop = "instance property (subsubclassed)"
+    }
+    
+    class Operators
+    {
+        New()
+        {
+            x := new TestNew1
+            A  x.x = '__init1' && x.y = '__new1'
+            x := new TestNew2
+            A  x.x = '__init1' && x.y = '__new1'
+            A  x.a = '__init2' && x.b = '__new2'
+            MustThrow(() => TestNew1.__init())
+            MustThrow(() => TestNew1.__new())
+            A  TestNew1.x = '' && TestNew1.y = ''
+        }
+        
+        Is()
+        {
+            x := new Object, y := new Object
+            A  (x is Object)
+            A  (x is 'object')
+            A  (x is y) = false
+            A  (new TestClass2) is TestClass2
+            A  (new TestClass2) is Object
+            A  (TestClass2 is Object)
+        }
+    }
+    
+    class JSON
+    {
+        SquareBrackets()
+        {
+            x := [10, 20,, 40]
+            A  x.is(Array) && x.is(Object)
+            A  x._[1] = 10 && x._[2] = 20 && x._[3] = "" && x._[4] = 40
+            A  x._[-1] = 40 && x._[-3] = 20
+            A  x.HasProperty('Length')
+            A  x.HasMethod('Length') = false && x.HasMethod('MaxIndex') = false
+            A  x.Length = 4
+            ; Array currently conflates properties and array elements:
+            A  x.HasKey(1) && !x.HasKey(3)
+            A  x.HasProperty(1) && !x.HasProperty(3)
+        }
+        
+        CurlyBraces()
+        {
+            x := {a: 1, b: 2}
+            A  x.is(Object)
+            A  x.is(Array) = false
+            A  x.HasProperty('a')
+            A  x.a = 1 && x.b = 2
+            A  x.HasProperty('c') = false && x.c = ''
+        }
+    }
+    
+    class Array
+    {
+        Indexing()
+        {
+            x := ['A','B','C']
+            A  x[1] = 'A' && x[2] = 'B' && x[3] = 'C'
+            A  x[-1] = 'C' && x[-2] = 'B' && x[-3] = 'A'
+            A  x[-4] = '' && x[0] = ''
+            A  (x[0] := 'D') = 'D'
+            A  x[-1] = 'D' && x[4] = 'D' && x.length = 4
+            A  (x[-2] := 'c') == 'c' && x[3] == 'c'
+        }
+        
+        Length()
+        {
+            A  ['A','B','C'].length = 3
+            A  ['A', ,'B', ,'C'].length = 5
+            x := ['A','B','C']
+            A  (x.Length := 2) = 2
+            A  x.HasKey(3) = false && x.Length = 2 && x[3] = ""
+            A  (x.Length := 4) = 4
+            A  x.HasKey(4) = false && x.Length = 4 && x[4] = ""
+            x.Push('D')
+            A  x[4] = "" && x[5] = "D" && x.Length = 5
+            A  x.RemoveAt(5) = "D" && x.Length = 4
+            A  x.RemoveAt(10) = "" && x.Length = 4
+            x.InsertAt(10, "X")
+            A  x[10] = "X" && x.Length = 10
+        }
+        
+        Enumeration()
+        {
+            x := [10, 20,, 40]
+            x.prop := 42
+            
+            s := ''
+            for v in x
+                s .= ' ' A_Index ':' v
+            A  s = ' 1:10 2:20 3: 4:40'
+            
+            s := ''
+            for k, v in x
+                s .= ' ' k ':' v
+            A  s = ' 1:10 2:20 4:40 prop:42'
+            
+            x.RemoveAt(2, 2), x.length := 4
+            s := ''
+            for v in x
+                s .= ' ' A_Index ':' v
+            A  s = ' 1:10 2:40 3: 4:'
+            
+            s := ''
+            for k, v in x
+                s .= ' ' k ':' v
+            A  s = ' 1:10 2:40 length:4 prop:42'
+        }
+    }
+    
+    Map()
+    {
+        m := new Map
+        A  m.set('abc', 11) = 11
+        A  m.get('abc') = 11
+        A  m.Count = 1
+        A  m.set('ABC', 33) = 33
+        A  m.get('ABC') = 33
+        A  m.get('abc') = 11
+        A  m.Count = 2
+        m.set('xyz', 'str')
+        A  m.Count = 3
+    }
+    
+    class Limitations
+    {
+        ; These test the expected results rather than the desired ones.
+        IsOperator()
+        {
+            ; Object not derived from self.
+            A  (Object is Object) = false
+            ; Must be true for `(new TestSubClass) is TestClass2` to work:
+            A  (TestSubClass is TestClass2)
+            ; `TestClass2 is Class` and `(new TestClass2) is TestClass2` cannot both be
+            ; true unless `(new TestClass2) is Class` is also true, making it pointless.
+            A  (TestClass2 is Class) = false
+            A  ((new TestClass2) is Class) = false
         }
     }
 }
-class TestSuperB extends TestSuperA {
+
+; =====================================================================
+
+class TestClass1 extends Object {
     class _instance {
-        Meth() {
-            return A_ThisFunc "`n"
-            . base.Meth()
+        initprop := "xx"
+        readonlyprop {
+            get {
+                return 10
+            }
+        }
+        writeonlyprop {
+            set {
+                return "=write1(" value ")"
+            }
+        }
+        readwriteprop {
+            get {
+                return 20
+            }
+            set {
+                return "=write2(" value ")"
+            }
+        }
+        method() {
+            return "=method()"
         }
     }
-}
-class TestSuperC extends TestSuperB {
-    class _instance {
-        Meth() {
-            return A_ThisFunc "`n"
-            . base.Meth()
-        }
-    }
-}
-
-TestNew:
-Test (x := new TestNew).x x.y
-try
-    Test TestNew.__new() TestNew.x
-catch
-    D "__new is not a static method"
-return
-class TestNew extends Object {
-    class _instance {
-        y := "__init is working. "
-        __new() {
-            this.x := "__new is working. "
-        }
-    }
-}
-
-TestArrayIndex:
-Test x := ['A','B','C']
-Test x[1] x[2] x[3] x[-1] x[-2] x[-3] (x[-4] || '.') (x[0] || '.')
-Test (x[0] := 'D') x[-1] x[4] ' ' x.length
-Test (x[-2] := 'c') x[3]
-return
-
-TestArrayLength:
-Test ['A','B','C'].length
-Test ['A',,'B',,'C'].length
-x := ['A','B','C']
-Test (x.Length := 2) x.HasKey(3) x.Length ' :' x[3]
-Test (x.Length := 4) x.HasKey(4) x.Length ' :' x[4]
-Test x.Push('D') '=' x[4] ',' x[5] ' #' x.Length
-Test x.RemoveAt(5) ' ' x.Length
-Test x.RemoveAt(10) ' ' x.Length
-Test x.InsertAt(10, 'X') ' ' x.Length ' ' x[10]
-return
-
-TestArrayFor:
-x := [10, 20,, 40]
-x.prop := 42
-D('for v in x'), s := ''
-for v in x
-    s .= ' ' A_Index ':' v
-D s
-D('for k, v in x'), s := ''
-for k, v in x
-    s .= ' ' k ':' v
-D s
-Test x.RemoveAt(2,1*2)
-Test x.length := 4
-D('for v in x'), s := ''
-for v in x
-    s .= ' ' A_Index ':' v
-D s
-D('for k, v in x'), s := ''
-for k, v in x
-    s .= ' ' k ':' v
-D s
-return
-
-TestSquare:
-x := [10, 20,, 40]
-Test (x is Array) (x is Object)
-Test x.HasKey(1) x.HasProperty(1) x.HasProperty(3) ObjHasKey(x, 1)
-Test x.HasProperty('Length') x.HasMethod('Length') x.HasMethod('MaxIndex')
-Test x.1 x[1] x.2 x[2] ' ' x.Length
-return
-
-TestCurly:
-x := {a: 1, b: 2}
-Test (x is Array) (x is Object)
-Test x.HasKey('a') x.HasProperty('a') ObjHasKey(x, 'a')
-Test x.a x.b x._['a']
-return
-
-TestIs2:
-x := new Object, y := new Object
-Test x.is(Object) x.is('object') Object.is(Object) x.is(y)
-Test (new TestClass).is(TestClass)
-Test (new TestClass).is(Object)
-Test TestClass.is(Object) TestSubClass.is(TestClass)
-Test TestClass.is(Class) (new TestClass).is(Class)
-Test (1).is('integer') (0.1).is('float') 'abc'.is('alnum') 'xyz'.is('xdigit')
-return
-
-TestIs:
-x := new Object, y := new Object
-Test (x is Object) (x is 'object') (Object is Object) (x is y)
-Test (new TestClass) is TestClass
-Test (new TestClass) is Object
-Test (TestClass is Object) (TestSubClass is TestClass)
-Test (TestClass is Class) (new TestClass is Class)
-return
-
-TestBase:
-Test ({}.base = Object) ([].base = Array)
-Test (new Object).base = Object
-Test (new TestClass).base = TestClass
-Test TestClass.base = Object
-try
-    Test (TestClass.base := 1) " FAIL"
-catch Exception
-    D "(TestClass.base := 1) => " Exception.message
-return
-
-TestClass:
-x := new TestClass
-Test TestClass.smeth() "," TestClass.sprop
-Test x.imeth() "," x.iprop
-Test TestClass.HasMethod("smeth") TestClass.HasProperty("sprop")
-Test TestClass.HasMethod("imeth") TestClass.HasProperty("iprop")
-Test x.HasMethod("smeth") x.HasProperty("sprop")
-Test x.HasMethod("imeth") x.HasProperty("iprop")
-return
-class TestClass extends Object {
     class _static {
-        smeth() {
+        static_method() {
+            return "=static_method()"
+        }
+    }
+}
+
+class TestClassDP extends Object {
+}
+
+class TestClassDM extends Object {
+}
+
+class TestClass2 extends Object {
+    class _static {
+        meth() {
             return "static method"
         }
-        sprop {
+        prop {
             get {
                 return "static property"
             }
         }
     }
     class _instance {
-        imeth() {
+        meth() {
             return "instance method"
         }
-        iprop {
+        prop {
             get {
                 return "instance property"
             }
         }
     }
 }
-
-TestSubClass:
-Test TestSubClass.smeth()
-Test (new TestSubClass).imeth()
-Test TestSubSubClass.smeth()
-Test (new TestSubSubClass).imeth()
-return
-class TestSubClass extends TestClass {
+class TestSubClass extends TestClass2 {
     class _static {
-        smeth() {
-            return base.smeth() " (subclassed)"
+        meth() {
+            return base.meth() " (subclassed)"
+        }
+        prop {
+            get {
+                return base.prop " (subclassed)"
+            }
         }
     }
     class _instance {
-        imeth() {
-            return base.imeth() " (subclassed)"
+        meth() {
+            return base.meth() " (subclassed)"
+        }
+        prop {
+            get {
+                return base.prop " (subclassed)"
+            }
         }
     }
 }
-class TestSubClass2 extends TestClass {
+class TestSubClass2 extends TestClass2 {
     ; Intentionally empty (no _static/_instance).
 }
 class TestSubSubClass extends TestSubClass2 {
     class _static {
-        smeth() {
-            return base.smeth() " (subsubclassed)"
+        meth() {
+            return base.meth() " (subsubclassed)"
+        }
+        prop {
+            get {
+                return base.prop " (subsubclassed)"
+            }
         }
     }
     class _instance {
-        imeth() {
-            return base.imeth() " (subsubclassed)"
+        meth() {
+            return base.meth() " (subsubclassed)"
+        }
+        prop {
+            get {
+                return base.prop " (subsubclassed)"
+            }
         }
     }
 }
 
-TestDefineMeth:
-x := new CDM, y := new CDM
-x.name := "x", y.name := "y"
-x.DefineMethod("meth", Func("Test_call"))
-Test x.HasMethod("meth") (x.meth="") " " x.meth(1)
-Test y.HasMethod("meth") CDM.HasMethod("meth")
-CDM.DefineMethod("me2", Func("Test_call"))
-Test x.HasMethod("me2") y.HasMethod("me2") CDM.HasMethod("me2")
-Test CDM.me2(2)
-CDM.Prototype.DefineMethod("me3", Func("Test_call"))
-Test x.HasMethod("me3") y.HasMethod("me3") CDM.HasMethod("me3")
-Test x.me3(3) " " y.me3(4)
-CDM.Prototype.DefineProperty("meth", {get: Func("Test_get_method").Bind("meth")})
-Test x.meth.Call(5) " " x.meth(6)
-return
-Test_call(this, arg:="") {
-    return this.name ".called(" arg ")"
+class TestNew1 extends Object {
+    class _instance {
+        x := "__init1"
+        __new() {
+            this.y := "__new1"
+        }
+    }
 }
-Test_get_method(name, this) {
-    return ObjBindMethod(this, name)
-}
-class CDM extends Object {
-    
+class TestNew2 extends TestNew1 {
+    class _instance {
+        a := "__init2"
+        __new() {
+            base.__new()
+            this.b := "__new2"
+        }
+    }
 }
 
-TestDefineProp:
-x := new CDP, y := new CDP
-x.DefineProperty("pg", {get: Func("Test_get").Bind("pg")})
-Test x.pg "," (x.pg := 100) "," x.pg
-x.DefineProperty("pgs", {get: Func("Test_get").Bind("pgs"), set: Func("Test_set").Bind("pgs")})
-Test x.pgs "," (x.pgs := 200) "," x.pgs
-x.defineProperty("ps", {set: Func("Test_set").Bind("ps")})
-Test x.ps "," (x.ps := 300) "," x.ps
-Test y.pg
-Test x.HasProperty("pg") y.HasProperty("pg") CDP.HasProperty("pg")
-CDP.DefineProperty("sprop", {get: Func("Test_get").Bind("sprop")})
-CDP.prototype.DefineProperty("iprop", {get: Func("Test_get").Bind("iprop")})
-Test CDP.sprop "," CDP.HasProperty("sprop")
-Test x.sprop "," x.HasProperty("sprop")
-Test CDP.iprop "," CDP.HasProperty("iprop")
-Test x.iprop "," y.iprop "," x.HasProperty("iprop")
-return
-Test_get(arg1, this) {
-    return arg1 "(" this._[arg1] ")"
-}
-Test_set(arg1, this, value) {
-    this._[arg1] := value
-    return arg1 " := " value
-}
-class CDP extends Object {
-    
-}
-
-TestGetMethod:
-x := new Object()
-x.DefineMethod("meth1", Func("Test_call"))
-Test x.GetMethod("meth1").Name
-return
-
-TestHasMethod:
-Test Object.HasMethod('HasMethod') TestHasMethod.HasMethod('HasMethod')
-x := new TestHasMethod
-Test x.HasMethod('meth') TestHasMethod.HasMethod('meth')
-x.adhocprop := 2
-Test x.HasMethod('prop') x.HasMethod('initprop') x.HasMethod('adhocprop')
-return
-class TestHasMethod extends Object {
-class _instance {
-    meth() {
-        MsgBox "meth"
-    }
-    prop {
-        get {
-            return 1
-        }
-    }
-    initprop := 1
-}}
-
-TestHasProp:
-Test Object.HasProperty('HasProperty') Object.HasMethod('HasProperty')
-Test TestHasProp.HasMethod('HasProperty')
-Test TestHasProp.HasProperty('propget')
-x := new TestHasProp
-Test x.HasProperty('propget') x.HasProperty('propset') x.HasProperty('propgetset')
-x.adhocprop := 2
-Test x.HasProperty('initprop') x.HasProperty('adhocprop')
-Test x.HasKey('initprop') x.HasKey('adhocprop')
-Test ObjHasKey(x, 'initprop') ObjHasKey(x, 'adhocprop')
-Test x.HasProperty('meth') x.HasProperty('noprop') x.HasProperty(1)
-return
-class TestHasProp extends Object {
-class _instance {
-    initprop := 1
-    propget {
-        get {
-            return 10
-        }
-    }
-    propset {
-        set {
-            D "propset := " value
-            return 20
-        }
-    }
-    propgetset {
-        get {
-            return 30
-        }
-        set {
-            D "propgetset := " value
-            return 40
-        }
-    }
-    meth() {
-        MsgBox "meth"
-    }
-}}
-
-Test(v) {
-    e := Exception('', -1)
-    s := ''
-    Loop Read, e.File {
-        if A_Index = e.Line {
-            s := A_LoopReadLine
-            break
-        }
-    }
-    D s ' => ' v
+NullFunc(p*) {
 }
