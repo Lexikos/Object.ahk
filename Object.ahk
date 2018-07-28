@@ -298,7 +298,8 @@ Object__new_(pm, f, this) {
     (f) && f.call(self)
     return self
 }
-Object__init_(f, this) {
+Object__init_(fsuper, f, this) {
+    fsuper.call(this)
     f.call(this)
 }
 Object__get_(b, m, this, k, p*) {
@@ -461,8 +462,11 @@ MetaClass(cls) {
     if !ObjHasKey(m.get, "base")
         ObjRawSet(m.get, "base", Func("Object_ReturnArg1").Bind(cls))
     if base_instance := cls_base[Class_Instance_Key] {
-        Members_Inherit(m, Class_Members(base_instance))
+        Members_Inherit(m, bi_m := Class_Members(base_instance))
         _instance ? _instance.base := base_instance : 0
+        ; Work around base.__Init() not being called by classes with no initial base:
+        if ObjHasKey(m.call, "__init") && bi_init := bi_m.call.__init
+            m.call.__init := Func("Object__init_").Bind(bi_init, m.call.__init)
     }
     pm := MetaObject_new(m)
     pm.base := cls  ; For type identity ('is').
