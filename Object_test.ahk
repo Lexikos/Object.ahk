@@ -1,3 +1,4 @@
+﻿
 #Include Object.ahk
 #Include <Yunit\Yunit>
 #Include <Yunit\Stdout>
