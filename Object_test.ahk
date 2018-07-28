@@ -341,6 +341,32 @@ class Tests
             A  ((new TestClass2) is Class) = false
         }
     }
+    
+    class Internal
+    {
+        Object_v()
+        {
+            x := Object_v()
+            A  Type(x) = "Object"
+            A  ObjGetCapacity(x) = 0
+        }
+        
+        ObjCount()
+        {
+            x := Object_v()
+            A  ObjCount(x) = 0
+            x.a := 1, x.b := 2
+            A  ObjCount(x) = 2
+            ObjDelete(x, 'a')
+            A  ObjCount(x) = 1
+        }
+        
+        ObjectFromPtr()
+        {
+            x := Object_v()
+            A  Object(&x) = x
+        }
+    }
 }
 
 ; =====================================================================
