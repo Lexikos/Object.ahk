@@ -412,7 +412,7 @@ Object_v(p*) {
 MetaClass(cls) {
     ; Determine base class.
     basecls := ObjGetBase(cls)  ; cls.base won't work for subclasses if MetaClass(superclass) has been called.
-    if !basecls || !ObjHasKey(basecls, "__Class")
+    if !ObjHasKey(cls, "__Class") || !basecls || !ObjHasKey(basecls, "__Class")
         throw Exception("Invalid parameter #1", -1, cls)
     if ObjHasKey(cls, "←instance")  ; Flag this as an error since it probably indicates a design problem.
         throw Exception("MetaClass has already been called for this class.", -1, ObjRawGet(cls, "__Class"))
