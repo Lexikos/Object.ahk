@@ -123,10 +123,13 @@ class Tests
             A  (TestClassDP.inst1 = "inst1()") = false
             
             Test_get(arg1, this) {
-                return arg1 "(" this._[arg1] ")"
+                ; FIXME: Create a "public" method to retrieve property data;
+                ;        or should property data and accessors be mutually exclusive?
+                return arg1 "(" this.←[arg1] ")"
             }
             Test_set(arg1, this, value) {
-                this._[arg1] := value
+                ; FIXME: As above.
+                this.←[arg1] := value
                 return arg1 " := " value
             }
         }
@@ -164,7 +167,7 @@ class Tests
             A  (new TestClass1).base = TestClass1
             A  TestClass1.base = Object
             
-            MustThrow(() => TestClass.base := 1, "Class.base assignment did not throw")
+            MustThrow(() => TestClass1.base := 1, "Class.base assignment did not throw")
         }
         
         Is()
@@ -184,22 +187,44 @@ class Tests
         }
     }
     
-    Subclass()
+    class Classes
     {
-        A  TestClass2.meth() = "static method"
-        A  TestClass2.prop = "static property"
-        A  (new TestClass2).meth() = "instance method"
-        A  (new TestClass2).prop = "instance property"
+        Subclass()
+        {
+            A  TestClass2.meth() = "static method"
+            A  TestClass2.prop = "static property"
+            
+            ; No "static x" because static members are not inherited:
+            A  TestSubClass.meth() = " (subclassed)"
+            A  TestSubClass.prop = " (subclassed)"
+            A  TestSubSubClass.meth() = " (subsubclassed)"
+            A  TestSubSubClass.prop = " (subsubclassed)"
+            
+            A  (new TestClass2).meth() = "instance method"
+            A  (new TestClass2).prop = "instance property"
+            A  (new TestSubClass).meth() = "instance method (subclassed)"
+            A  (new TestSubClass).prop = "instance property (subclassed)"
+            A  (new TestSubSubClass).meth() = "instance method (subsubclassed)"
+            A  (new TestSubSubClass).prop = "instance property (subsubclassed)"
+        }
         
-        A  TestSubClass.meth() = "static method (subclassed)"
-        A  TestSubClass.prop = "static property (subclassed)"
-        A  (new TestSubClass).meth() = "instance method (subclassed)"
-        A  (new TestSubClass).prop = "instance property (subclassed)"
+        StaticVar()
+        {
+            A  TestInit.one = 1
+            A  TestInit.two = 2
+            A  TestInit.three = 3
+            A  TestInit.HasProperty("one")
+            A  ObjHasKey(TestInit, "one") = false
+        }
         
-        A  TestSubSubClass.meth() = "static method (subsubclassed)"
-        A  TestSubSubClass.prop = "static property (subsubclassed)"
-        A  (new TestSubSubClass).meth() = "instance method (subsubclassed)"
-        A  (new TestSubSubClass).prop = "instance property (subsubclassed)"
+        InstanceVar()
+        {
+            x := new TestInit
+            A  x.dot = "."
+            A  x.ellipsis = "..."
+            A  x.HasProperty("dot")
+            A  ObjHasKey(x, "dot") = false
+        }
     }
     
     class Operators
@@ -252,6 +277,15 @@ class Tests
             A  x.HasProperty('a')
             A  x.a = 1 && x.b = 2
             A  x.HasProperty('c') = false && x.c = ''
+        }
+        
+        SetBase()
+        {
+            x := {a: 1}
+            y := {b: 2, base: x}
+            A  ObjGetBase(y.←) != x
+            A  ObjGetBase(y) = x
+            A  y.base = x
         }
     }
     
@@ -340,6 +374,19 @@ class Tests
             ; true unless `(new TestClass2) is Class` is also true, making it pointless.
             A  (TestClass2 is Class) = false
             A  ((new TestClass2) is Class) = false
+        }
+        
+        StaticVar()
+        {
+            ; `this` in __init context refers to property data, not the class.
+            A  TestInit.four != "Class"
+        }
+        
+        InstanceVar()
+        {
+            x := new TestInit
+            ; `this` in __init context refers to property data, not the instance.
+            A  x.typename != "TestInit"
         }
     }
     
@@ -495,6 +542,20 @@ class TestNew2 extends TestNew1 {
             base.__new()
             this.b := "__new2"
         }
+    }
+}
+
+class TestInit extends Object {
+    class _static {
+        one := 1
+        two := this.one + 1
+        three := TestInit.two + 1
+        four := type(this)
+    }
+    class _instance {
+        dot := "."
+        ellipsis := this.dot this.dot this.dot
+        typename := type(this)
     }
 }
 

@@ -5,12 +5,32 @@ class _ClassInitMetaFunctions
     __init() {
         if ObjHasKey(this, "__Class")
             throw Exception(A_ThisFunc " unexpectedly called on a class", -1)
-        cls := ObjGetBase(this)
-        if !ObjHasKey(cls, "__Class")
-            throw Exception("new unexpectedly used with a non-class", -1)
-        pm := Class_ProtoMeta(cls)
-        if f := pm.m.call["__init"]
-            f.call(this)
+        if ObjHasKey(cls := ObjGetBase(this), "__Class") && !ObjHasKey(cls, "←")
+            MetaClass(cls)
+    }
+    __new(p*) {
+        b := ObjGetBase(this)
+        ; If b is a class, make an instance; i.e. base on b.prototype.
+        ; If b is an instance, make a "live clone"; i.e. base on b.
+        if ObjHasKey(b, "__Class") {
+            ; For `new SomeClass`, derive from `SomeClass.prototype`.
+            ObjSetBase(this, b := b.prototype)
+        }
+        propdata := Object_v()
+        ObjRawSet(this, "←", propdata)
+        ; Initialize instance variables.
+        if f := b.←call["__init"] {
+            ; Hackfix: __init will put values directly in propdata via ObjRawSet,
+            ; but may also call methods/properties via `this` explicitly, so ←
+            ; needs to refer to propdata.  This will cause issues if any methods
+            ; put values directly in `this` that aren't intended for ←.
+            ObjRawSet(propdata, "←", propdata)
+            f.call(propdata)
+            ObjDelete(propdata, "←")
+        }
+        ; Call constructor, *if any*.
+        if f := b.←call["__new"]
+            f.call(this, p*)
     }
     ; Called on classes (once only):
     __get(p*) {
@@ -43,7 +63,7 @@ class Object extends _ClassInitMetaFunctions
         base {
             set {
                 if value is Object && ObjHasKey(value, "__Class") || value = Object
-                    ObjSetBase(this, Class_ProtoMeta(value))
+                    ObjSetBase(this, value.prototype)
                 else
                     ObjSetBase(this, value)
                 return value
@@ -55,68 +75,71 @@ class Object extends _ClassInitMetaFunctions
         }
         
         HasProperty(name) {
-            mo := ObjGetBase(this)
-            return isObject(mo.m.get[name] || mo.m.set[name])
-                || ObjHasKey(this._, name)
-                ; || ObjHasKey(this, name)
+            m := ObjGetBase(this)
+            return isObject(m.←get[name] || m.←set[name])
+                || ObjHasKey(this.←, name)
         }
         
         HasMethod(name) {
-            mo := ObjGetBase(this)
-            return isObject(mo.m.call[name])
+            m := ObjGetBase(this)
+            return isObject(m.←call[name])
         }
         
         GetMethod(name) {
-            mo := ObjGetBase(this)
-            return mo.m.call[name]
+            m := ObjGetBase(this)
+            return m.←call[name]
         }
         
         DefineProperty(name, prop) {
             if !isObject(prop) || !(prop.get || prop.set)
                 throw Exception("Invalid parameter #2", -2, prop)
-            mo := Own_Meta(this)
-            Members_DefProp(mo.m, name, prop)
+            m := Own_Meta(this)
+            MetaObject_DefProp(m, name, prop)
         }
         
         DefineMethod(name, func) {
             if !isObject(func)
                 throw Exception("Invalid parameter #2", -2, func)
-            mo := Own_Meta(this)
-            Members_DefMeth(mo.m, name, func)
+            m := Own_Meta(this)
+            MetaObject_DefMeth(m, name, func)
         }
         
         DeleteProperty(name) {
-            if mo := Own_Meta(this, false) {
-                ObjDelete(mo.m.get, name)
-                ObjDelete(mo.m.set, name)
+            if m := Own_Meta(this, false) {
+                ObjDelete(m.←get, name)
+                ObjDelete(m.←set, name)
             }
-            ObjDelete(this._, name)
+            ObjDelete(this.←, name)
         }
         
         DeleteMethod(name) {
-            if mo := Own_Meta(this, false) {
-                ObjDelete(mo.m.call, name)
+            if m := Own_Meta(this, false) {
+                ObjDelete(m.←call, name)
             }
         }
         
         ; Standard object methods
         SetCapacity(p*) {
-            return ObjSetCapacity(this._, p*)
+            return ObjSetCapacity(this.←, p*)
         }
         GetCapacity(p*) {
-            return ObjGetCapacity(this._, p*)
+            return ObjGetCapacity(this.←, p*)
         }
         GetAddress(p) {
-            return ObjGetAddress(this._, p)
+            return ObjGetAddress(this.←, p)
         }
         HasKey(p) {
-            return ObjHasKey(this._, p)
+            return ObjHasKey(this.←, p)
         }
         Clone() {
-            return {_: ObjClone(this._), base: this.base}
+            c := ObjClone(this)
+            ObjRawSet(c, "←", ObjClone(this.←))  ; Copy owned properties, don't share.
+            if (m := ObjGetBase(this)).owner = this
+                ObjSetBase(c, ObjClone(m))  ; Copy owned members, don't share.
+            return c
         }
         _NewEnum() {
-            return ObjNewEnum(this._)
+            return ObjNewEnum(this.←)
         }
     }
 }
@@ -143,8 +166,10 @@ class Array extends Object
 {
     class _instance
     {
-        __new() {
-            ObjSetBase(this._, Array._Indexer)
+        __new(p*) {
+            ObjSetBase(this.←, Array._Indexer)
+            ObjRawSet(this, "_", this.←) ; FIXME: array elements should be separate from properties
+            ObjPush(this._, p*)
         }
         
         Length {
@@ -280,84 +305,84 @@ class Map extends Object
             return cl
         }
         
-        _NewEnum() {
-            return ObjNewEnum(this._)  ; TODO
-        }
+        ; _NewEnum() {
+            ; TODO
+        ; }
     }
 }
 
-Object__new_(pm, f, this) {
-    self := Object_v()
-    ; This reuses the original object for data storage, since it already
-    ; contains the ad hoc properties which were created in __init.
-    ; FIXME: It's probably better to have property-assignment semantics,
-    ;  not direct-to-data (i.e. property setters should be called).
-    self._ := this
-    self.base := pm
-    ObjSetBase(this, "")
-    (f) && f.call(self)
-    return self
-}
 Object__init_(fsuper, f, this) {
     fsuper.call(this)
     f.call(this)
 }
-Object__get_(b, m, this, k, p*) {
-    if &ObjGetBase(this) = b {  ; Workaround for subclasses which haven't yet been metaclass()ed.
+Object__get_(m, this, k, p*) {
+     ; Checking for the prefix simplifies access to ←get/←set/←call
+     ; and eliminates any risk of recursion by this.←[] below.
+    if SubStr(k, 1, 1) != "←"
+    ; The checks below ensure this isn't a subclass which has yet to be
+    ; initialized.  All objects and initialized classes should have "←".
+    if ObjHasKey(this, "←") || !ObjHasKey(this, "__Class") {
         if f := m[k]
             return f.call(this, p*)
-        return this._[k, p*]
+        return this.←[k, p*]
     }
 }
-Object__set_(b, m, this, k, p*) {
-    if &ObjGetBase(this) = b {
+Object__set_(m, this, k, p*) {
+    if ObjHasKey(this, "←") || !ObjHasKey(this, "__Class") {
         if f := m[k]
             return f.call(this, p*)
         value := p.Pop()
-        return this._[k, p*] := value
+        return this.←[k, p*] := value
     }
 }
-Object__call_(b, m, this, k, p*) {
-    if &ObjGetBase(this) = b {
+Object__call_(m, this, k, p*) {
+    if ObjHasKey(this, "←") || !ObjHasKey(this, "__Class") {
         if f := m[k]
             return f.call(this, p*)
         throw Exception("No such method", -1, k)
     }
 }
 
-class Class_ProtoMeta_Key {
-}
-Class_ProtoMeta(cls) {
-    if !ObjHasKey(cls, Class_ProtoMeta_Key)
-        MetaClass(cls)
-    return cls[Class_ProtoMeta_Key]
-}
-
 class MetaObject {
     
 }
-MetaObject_new(m) {
-    mo := Object_v()
-    mo.__get := Func("Object__get_").Bind(&mo, m.get)
-    mo.__set := Func("Object__set_").Bind(&mo, m.set)
-    mo.__call := Func("Object__call_").Bind(&mo, m.call)
-    mo.m := m
-    return mo
+MetaObject_new(owner) {
+    m := Object_v()
+    m.owner := &owner
+    m.←get := Object_v()
+    m.←set := Object_v()
+    m.←call := Object_v()
+    ; Set the standard meta-functions.
+    m.__get := Func("Object__get_").Bind(m.←get)
+    m.__set := Func("Object__set_").Bind(m.←set)
+    m.__call := Func("Object__call_").Bind(m.←call)
+    return m
+}
+MetaObject_Inherit(m, bm) {
+    ObjSetBase(m.←get, bm.←get)
+    ObjSetBase(m.←set, bm.←set)
+    ObjSetBase(m.←call, bm.←call)
+}
+MetaObject_DefProp(m, name, prop) {
+    (get := prop.get) && ObjRawSet(m.←get, name, get)
+    (set := prop.set) && ObjRawSet(m.←set, name, set)
+}
+MetaObject_DefMeth(m, name, func) {
+    ObjRawSet(m.←call, name, func)
 }
 
 Own_Meta(this, maycreate:=true) {
-    mo := ObjGetBase(this)  ; It is assumed that 'this' is a properly constructed Object, with a meta-object.
-    if mo.owner == &this
-        return mo
-    ; else: mo is shared.
+    bm := ObjGetBase(this)  ; It is assumed that 'this' is a properly constructed Object, with a meta-object.
+    if bm.owner == &this
+        return bm
+    ; else: bm is shared.
     if !maycreate
         return
-    m := Members_new()
-    tm := MetaObject_new(m)
-    tm.owner := &this
-    Members_Inherit(m, mo.m)
-    ObjSetBase(this, tm)
-    return tm
+    om := MetaObject_new(this)
+    MetaObject_Inherit(om, bm)
+    ObjSetBase(om, bm)
+    ObjSetBase(this, om)
+    return om
 }
 
 Object_ReturnArg1(arg1) {
@@ -368,53 +393,11 @@ Object_Throw(message, what) {
     throw Exception(message, what)
 }
 
-class Class_Members_Key {
-}
-Members_new() {
-    m := Object_v()
-    m.get := Object_v()
-    m.set := Object_v()
-    m.call := Object_v()
-    ; ObjRawSet(m.get, "base", "") ; Removes the need for ObjRawSet elsewhere, but makes debugging harder.
-    ; ObjRawSet(m.set, "base", "")
-    ; ObjRawSet(m.call, "base", "")
-    return m
-}
-Members_Inherit(m, bm) {
-    ObjSetBase(m.get, bm.get)
-    ObjSetBase(m.set, bm.set)
-    ObjSetBase(m.call, bm.call)
-}
-Members_DefProp(m, name, prop) {
-    (get := prop.get) && ObjRawSet(m.get, name, get)
-    (set := prop.set) && ObjRawSet(m.set, name, set)
-}
-Members_DefMeth(m, name, func) {
-    ObjRawSet(m.call, name, func)
-}
-Class_Members(cls) {
-    if ObjHasKey(cls, Class_Members_Key)
-        return cls[Class_Members_Key]
-    ObjRawSet(cls, Class_Members_Key, m := Members_new())
-    e := ObjNewEnum(cls)
-    while e.Next(k, v) {
-        if type(v) = "Func" {  ; Not isFunc() - don't want func NAMES, only true methods.
-            Members_DefMeth(m, k, v)
-        }
-        else if type(v) = "Property" {
-            Members_DefProp(m, k, v)
-        }
-        else {
-            ; Inherit static variables?
-        }
-    }
-    return m
-}
-
 Array(p*) {
     a := Object_v()
     a._ := p
-    a.base := Class_ProtoMeta(Array)
+    a.← := p ; FIXME: see Array.__new
+    a.base := Array.prototype
     p.base := Array._Indexer
     return a
 }
@@ -423,95 +406,120 @@ Object_v(p*) {
     return p
 }
 
-ForEachDelete(enumerate, deleteFrom) {
-    e := ObjNewEnum(enumerate)
-    while e.Next(k)
-        ObjDelete(deleteFrom, k)
-}
-
-Class_DeleteMembers(cls, m) {
-    ForEachDelete(m.call, cls)
-    ForEachDelete(m.get, cls)
-    ForEachDelete(m.set, cls)
-}
-
-class Class_Instance_Key {
-}
-class Class_Static_Key {
-}
+; =====================================================================
+; MetaClass(cls): Initializes a class object to enable new semantics.
+; =====================================================================
 MetaClass(cls) {
     ; Determine base class.
-    cls_base := ObjGetBase(cls)  ; cls.base won't work for subclasses if MetaClass(superclass) has been called.
-    if !cls_base || !ObjHasKey(cls_base, "__Class")
+    basecls := ObjGetBase(cls)  ; cls.base won't work for subclasses if MetaClass(superclass) has been called.
+    if !basecls || !ObjHasKey(basecls, "__Class")
         throw Exception("Invalid parameter #1", -1, cls)
-    if !ObjHasKey(cls_base, Class_Instance_Key) && cls_base != _ClassInitMetaFunctions
-        MetaClass(cls_base)  ; Initialize base class first.
+    if ObjHasKey(cls, "←instance")  ; Flag this as an error since it probably indicates a design problem.
+        throw Exception("MetaClass has already been called for this class.", -1, ObjRawGet(cls, "__Class"))
+    if basecls = _ClassInitMetaFunctions
+        basecls := ""
+    else if !ObjHasKey(basecls, "←")
+        MetaClass(basecls)  ; Initialize base class first.
     ; Retrieve and remove internal properties.
     _instance := ObjDelete(cls, "_instance")
     _static := ObjDelete(cls, "_static")
     ; Retrieve and remove nested classes.
-    _data := Object_v()
+    static_data := Object_v()
     e := ObjNewEnum(cls)
     while e.Next(k, v) {
         if type(v) == "Class"  ; Nested class (static variables should be in _static).
-            ObjRawSet(_data, k, v)
+            ObjRawSet(static_data, k, v)
+        else if k != "__Class"
+            throw Exception(Format("Improper static data {1}:{2} in class {3}."
+                , IsObject(k) ? Type(k) : "'" k "'"
+                , IsObject(v) ? Type(v) : "'" v "'"
+                , cls.__class), -2)
     }
-    ForEachDelete(_data, cls)
-    ; Construct meta-object for instance prototype.
-    m := _instance ? Class_Members(_instance) : Members_new()
-    if !ObjHasKey(m.get, "base")
-        ObjRawSet(m.get, "base", Func("Object_ReturnArg1").Bind(cls))
-    if base_instance := cls_base[Class_Instance_Key] {
-        Members_Inherit(m, bi_m := Class_Members(base_instance))
-        _instance ? _instance.base := base_instance : 0
+    e := ObjNewEnum(static_data)
+    while e.Next(k)
+        ObjDelete(cls, k)
+    
+    ; =================================================================
+    ; Initialize core objects.
+    ; -----------------------------------------------------------------
+    MakeProto(proto:="", propdata:="") {
+        (proto || (proto := Object_v()))
+        ObjRawSet(proto, "←", propdata || Object_v())
+        ObjSetBase(proto, MetaObject_new(proto))
+        return proto
+    }
+    ; Create instance prototype.
+    pt := MakeProto()
+    ; Store instance prototype as a static data property.
+    ObjRawSet(static_data, "prototype", pt)
+    ; Convert class to static prototype.
+    MakeProto(cls, static_data)
+    
+    ; Store the _instance class that subclasses will link to their own.
+    base_instance := basecls && basecls.←instance
+    ObjRawSet(cls, "←instance", _instance || base_instance)
+    
+    ; (_static) && ObjRawSet(cls, "←static", _static) ; For debugging.
+    
+    ; Retrieve metaobjects.
+    pt_m := ObjGetBase(pt)
+    cls_m := ObjGetBase(cls)
+    
+    ; Restore the class initialization meta-functions and type identity
+    ; for the `is` operator.
+    ObjSetBase(cls_m, basecls || _ClassInitMetaFunctions)
+    ObjSetBase(pt_m, cls)
+    
+    ; =================================================================
+    ; Convert class members to prototype members.
+    ; -----------------------------------------------------------------
+    DefMembers(m, defcls) {
+        e := ObjNewEnum(defcls)
+        while e.Next(k, v) {
+            if type(v) = "Func"
+                MetaObject_DefMeth(m, k, v)
+            else if type(v) = "Property"
+                MetaObject_DefProp(m, k, v)
+        }
+    }
+    (_instance) && DefMembers(pt_m, _instance)
+    (_static) && DefMembers(cls_m, _static)
+    
+    ; Inherit superclass instance members via base prototype.
+    (basecls) && MetaObject_Inherit(pt_m, ObjGetBase(basecls.prototype))
+    ; Implement instance members of Class on the class object itself.
+    ; This may cause a recursive call to MetaClass(Class).
+    MetaObject_Inherit(cls_m, ObjGetBase(Class.prototype))
+    
+    if _instance {
+        ; Set _instance.base to allow base.x calls.  This way, the base
+        ; chain used by base.x includes only _instance members.
+        ObjSetBase(_instance, base_instance)
         ; Work around base.__Init() not being called by classes with no initial base:
-        if ObjHasKey(m.call, "__init") && bi_init := bi_m.call.__init
-            m.call.__init := Func("Object__init_").Bind(bi_init, m.call.__init)
+        if _instance.__init && base_instance && base_instance.__init
+            ObjRawSet(pt_m.←call, "__init", Func("Object__init_")
+                .Bind(base_instance.__init, pt_m.←call["__init"]))
     }
-    pm := MetaObject_new(m)
-    pm.base := cls  ; For type identity ('is').
-    ObjRawSet(cls, Class_ProtoMeta_Key, pm)
-    ObjRawSet(cls, Class_Instance_Key, _instance || base_instance)
-    ; Construct meta-object for class/static members.
-    cls_base_static := cls_base[Class_Static_Key] || Class[Class_Instance_Key]
     if _static {
-        m := Class_Members(_static)
-        ObjSetBase(_static, cls_base_static)  ; For base.method(); but don't inherit members.
-        ObjRawSet(cls, Class_Static_Key, _static)
+        ; Although superclass static members are not inherited, static
+        ; members can override instance methods of Class or Object.
+        ; Set _static.base so that base.x will call the latter.
+        ObjSetBase(_static, Class.←instance)
     }
-    else {
-        m := Members_new()
-        ObjRawSet(cls, Class_Static_Key, cls_base_static)
-    }
-    if !ObjHasKey(Class, Class_Instance_Key)
-        MetaClass(Class)
-    Members_Inherit(m, Class_Members(Class[Class_Instance_Key]))
-    ObjRawSet(m.get, "base", Func("Object_ReturnArg1").Bind(cls_base))
-    ObjRawSet(m.set, "base", Func("Object_Throw").Bind("Base class cannot be changed", -2))
-    ; cm defines the interface of the class object (not instances).
-    cm := MetaObject_new(m)
-    cm.owner := &cls
-    ; pm defines the interface of the instances, and prototype provides
-    ; a way to DefineProperty()/DefineMethod() for all instances, since
-    ; MyClass.DefineXxx() defines a Xxx for the class itself (static).
-    proto := Object_v()
-    proto._ := Object_v()
-    ObjSetBase(proto, pm)
-    ObjRawSet(pm, "owner", &proto)
-    ObjRawSet(cls, "prototype", proto)
-    ; The `new` operator skips __call and thereby calls the __new meta-function
-    ; we define here.  This does some tricky work and then calls the __new method
-    ; defined by the class, if any.  __init can't be handled this way since it
-    ; may be the means by which MetaClass() is called, and setting it for a base
-    ; class may prevent initialization of subclasses.
-    ObjRawSet(cm, "__new", Func("Object__new_").Bind(pm, pm.m.call["__new"]))
-    cm.base := cls_base  ; For type identity of instances ('is').
-    ObjSetBase(cls, cm)
-    ; Currently var initializers use ObjRawSet(), but might refer to
-    ; 'this' explicitly and therefore may require this._ to be set.
-    ObjRawSet(cls, "_", _data)
+    
+    ; Implement built-in base property.
+    ; FIXME: Old semantics; probably should return prototype, not class.
+    if !ObjHasKey(pt_m.←get, "base")
+        ObjRawSet(pt_m.←get, "base", Func("Object_ReturnArg1").Bind(cls))
+    if !ObjHasKey(cls_m.←get, "base")
+        ObjRawSet(cls_m.←get, "base", Func("Object_ReturnArg1").Bind(basecls))
+    if !ObjHasKey(cls_m.←set, "base")
+        ObjRawSet(cls_m.←set, "base", Func("Object_Throw").Bind("Base class cannot be changed", -2))
+
+    ; Evaluate static initializers (class variables defined in _static).
     if _static && ObjHasKey(_static, "__init") && type(_static.__init) == "Func" {
-        _static.__init.call(_data)
+        ; static_data not cls, since var initializers use ObjRawSet().
+        _static.__init.call(static_data)
     }
 }
 
@@ -525,14 +533,22 @@ ObjCount(obj) {
 }
 
 Object(p*) {
-    if p.Length() = 1 {
-        return ComObject(0x4009, &(n := p[1]))[]
+    if ObjLength(p) & 1 {
+        if p.Length() = 1
+            return ComObject(0x4009, &(n := p[1]))[]
+        throw Exception("Invalid parameter count", -1, ObjLength(p))
     }
-    obj := new Object
-    while p.Length() {
-        value := p.Pop()
-        key := p.Pop()
-        obj[key] := value
+    ; This is just the essential parts of what `new Object()` does,
+    ; skipping stuff that isn't needed, under the assumption that no
+    ; one will add __init or __new methods to class Object.
+    this := Object_v()
+    this.← := propdata := ObjClone(this)
+    this.base := Object.prototype
+    while ObjLength(p) {
+        value := ObjPop(p), key := ObjPop(p)
+        ; Could write directly to propdata, but then properties such
+        ; as 'base' or any added by the user would not work.
+        this[key] := value
     }
-    return obj
+    return this
 }
