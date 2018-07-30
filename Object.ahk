@@ -61,17 +61,17 @@ class Object extends _ClassInitMetaFunctions
     class _instance
     {
         base {
+            get {
+                return ObjHasKey(b := ObjGetBase(this), "←meta") ? ObjGetBase(b) : b
+            }
             set {
-                if value is Object && ObjHasKey(value, "__Class") || value = Object
-                    ObjSetBase(this, value.prototype)
-                else
-                    ObjSetBase(this, value)
+                if value && !ObjHasKey(value, "←")
+                    throw Exception("Incompatible base object", -1, type(value))
+                if ObjHasKey(b := ObjGetBase(this), "←meta")
+                    MetaObject_Inherit(this := b, value)
+                ObjSetBase(this, value)
                 return value
             }
-        }
-        
-        is(type) {
-            return this is type
         }
         
         HasProperty(name) {
@@ -134,7 +134,7 @@ class Object extends _ClassInitMetaFunctions
         Clone() {
             c := ObjClone(this)
             ObjRawSet(c, "←", ObjClone(this.←))  ; Copy owned properties, don't share.
-            if (m := ObjGetBase(this)).owner = this
+            if ObjHasKey(m := ObjGetBase(this), "←meta")
                 ObjSetBase(c, ObjClone(m))  ; Copy owned members, don't share.
             return c
         }
@@ -146,14 +146,6 @@ class Object extends _ClassInitMetaFunctions
 
 class Class extends Object
 {
-    class _instance
-    {
-        is(type) {
-            if isObject(type)
-                return type = Class || type = Object
-            return this is type
-        }
-    }
 }
 
 Value__call(value, n, p*) {
@@ -346,9 +338,9 @@ Object__call_(m, this, k, p*) {
 class MetaObject {
     
 }
-MetaObject_new(owner) {
+MetaObject_new() {
     m := Object_v()
-    m.owner := &owner
+    m.←meta := "" ; The presence of this key is what matters.
     m.←get := Object_v()
     m.←set := Object_v()
     m.←call := Object_v()
@@ -359,9 +351,9 @@ MetaObject_new(owner) {
     return m
 }
 MetaObject_Inherit(m, bm) {
-    ObjSetBase(m.←get, bm.←get)
-    ObjSetBase(m.←set, bm.←set)
-    ObjSetBase(m.←call, bm.←call)
+    ObjSetBase(m.←get, bm && bm.←get)
+    ObjSetBase(m.←set, bm && bm.←set)
+    ObjSetBase(m.←call, bm && bm.←call)
 }
 MetaObject_DefProp(m, name, prop) {
     (get := prop.get) && ObjRawSet(m.←get, name, get)
@@ -373,12 +365,12 @@ MetaObject_DefMeth(m, name, func) {
 
 Own_Meta(this, maycreate:=true) {
     bm := ObjGetBase(this)  ; It is assumed that 'this' is a properly constructed Object, with a meta-object.
-    if bm.owner == &this
+    if ObjHasKey(bm, "←meta")
         return bm
-    ; else: bm is shared.
+    ; else: this directly extends a prototype.
     if !maycreate
         return
-    om := MetaObject_new(this)
+    om := MetaObject_new()
     MetaObject_Inherit(om, bm)
     ObjSetBase(om, bm)
     ObjSetBase(this, om)
@@ -445,7 +437,7 @@ MetaClass(cls) {
     MakeProto(proto:="", propdata:="") {
         (proto || (proto := Object_v()))
         ObjRawSet(proto, "←", propdata || Object_v())
-        ObjSetBase(proto, MetaObject_new(proto))
+        ObjSetBase(proto, MetaObject_new())
         return proto
     }
     ; Create instance prototype.
@@ -467,8 +459,10 @@ MetaClass(cls) {
     
     ; Restore the class initialization meta-functions and type identity
     ; for the `is` operator.
-    ObjSetBase(cls_m, basecls || _ClassInitMetaFunctions)
-    ObjSetBase(pt_m, cls)
+    if !ObjHasKey(Class, "←")
+        MetaClass(Class)
+    ObjSetBase(cls_m, Class.prototype)
+    ObjSetBase(pt_m, basecls ? (basept := basecls.prototype) : _ClassInitMetaFunctions)
     
     ; =================================================================
     ; Convert class members to prototype members.
@@ -486,7 +480,7 @@ MetaClass(cls) {
     (_static) && DefMembers(cls_m, _static)
     
     ; Inherit superclass instance members via base prototype.
-    (basecls) && MetaObject_Inherit(pt_m, ObjGetBase(basecls.prototype))
+    (basecls) && MetaObject_Inherit(pt_m, ObjGetBase(basept))
     ; Implement instance members of Class on the class object itself.
     ; This may cause a recursive call to MetaClass(Class).
     MetaObject_Inherit(cls_m, ObjGetBase(Class.prototype))
@@ -507,15 +501,6 @@ MetaClass(cls) {
         ObjSetBase(_static, Class.←instance)
     }
     
-    ; Implement built-in base property.
-    ; FIXME: Old semantics; probably should return prototype, not class.
-    if !ObjHasKey(pt_m.←get, "base")
-        ObjRawSet(pt_m.←get, "base", Func("Object_ReturnArg1").Bind(cls))
-    if !ObjHasKey(cls_m.←get, "base")
-        ObjRawSet(cls_m.←get, "base", Func("Object_ReturnArg1").Bind(basecls))
-    if !ObjHasKey(cls_m.←set, "base")
-        ObjRawSet(cls_m.←set, "base", Func("Object_Throw").Bind("Base class cannot be changed", -2))
-
     ; Evaluate static initializers (class variables defined in _static).
     if _static && ObjHasKey(_static, "__init") && type(_static.__init) == "Func" {
         ; static_data not cls, since var initializers use ObjRawSet().

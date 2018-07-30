@@ -161,29 +161,13 @@ class Tests
         
         BaseProperty()
         {
-            A  ({}.base = Object)
-            A  ([].base = Array)
-            A  (new Object).base = Object
-            A  (new TestClass1).base = TestClass1
-            A  TestClass1.base = Object
+            A  ({}.base = Object.prototype)
+            A  ([].base = Array.prototype)
+            A  (new Object).base = Object.prototype
+            A  (new TestClass1).base = TestClass1.prototype
+            A  TestClass1.base = Class.prototype
             
             MustThrow(() => TestClass1.base := 1, "Class.base assignment did not throw")
-        }
-        
-        Is()
-        {
-            x := new Object, y := new Object
-            A  x.is(Object)
-            A  Object.is(Object)
-            A  x.is('object')
-            A  x.is(y) = false
-            A  (new TestClass2).is(TestClass2)
-            A  (new TestClass2).is(Object)
-            A  TestClass2.is(Object)
-            A  TestSubClass.is(TestClass2) = false  ; Not an instance of.
-            A  TestClass2.is(Class) && not (new TestClass2).is(Class)
-            A  (1).is('integer') && (0.1).is('float') && 'abc'.is('alnum')
-            A  'xyz'.is('xdigit') = false
         }
     }
     
@@ -244,12 +228,13 @@ class Tests
         Is()
         {
             x := new Object, y := new Object
-            A  (x is Object)
+            A  (x is Object.prototype)
             A  (x is 'object')
             A  (x is y) = false
-            A  (new TestClass2) is TestClass2
-            A  (new TestClass2) is Object
-            A  (TestClass2 is Object)
+            A  (new TestClass2) is TestClass2.prototype
+            A  (new TestClass2) is Object.prototype
+            A  (TestClass2 is Object.prototype) && (TestClass2 is Class.prototype)
+            A  (Object is Object.prototype) && (Object is Class.prototype)
         }
     }
     
@@ -258,7 +243,7 @@ class Tests
         SquareBrackets()
         {
             x := [10, 20,, 40]
-            A  x.is(Array) && x.is(Object)
+            A  (x is Array.prototype) && (x is Object.prototype)
             A  x._[1] = 10 && x._[2] = 20 && x._[3] = "" && x._[4] = 40
             A  x._[-1] = 40 && x._[-3] = 20
             A  x.HasProperty('Length')
@@ -272,8 +257,8 @@ class Tests
         CurlyBraces()
         {
             x := {a: 1, b: 2}
-            A  x.is(Object)
-            A  x.is(Array) = false
+            A  (x is Object.prototype)
+            A  (x is Array.prototype) = false
             A  x.HasProperty('a')
             A  x.a = 1 && x.b = 2
             A  x.HasProperty('c') = false && x.c = ''
@@ -364,17 +349,6 @@ class Tests
     class Limitations
     {
         ; These test the expected results rather than the desired ones.
-        IsOperator()
-        {
-            ; Object not derived from self.
-            A  (Object is Object) = false
-            ; Must be true for `(new TestSubClass) is TestClass2` to work:
-            A  (TestSubClass is TestClass2)
-            ; `TestClass2 is Class` and `(new TestClass2) is TestClass2` cannot both be
-            ; true unless `(new TestClass2) is Class` is also true, making it pointless.
-            A  (TestClass2 is Class) = false
-            A  ((new TestClass2) is Class) = false
-        }
         
         StaticVar()
         {
