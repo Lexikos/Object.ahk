@@ -171,6 +171,32 @@ class Tests
         }
     }
     
+    class Prototype
+    {
+        BaseProperty()
+        {
+            x := {a: 1}
+            y := {}
+            y.base := x
+            A  y.base = x
+            A  y.a = 1
+            A  y is x
+            y.base := {b: 2}
+            A  y.base != x
+            A  y.b = 2
+            A  y.a = ""
+        }
+        
+        InheritDataProp()
+        {
+            x := {a: 1}
+            y := new x
+            A  y.a = 1
+            A  y.HasProperty('a')
+            A  y.HasKey('a') = false
+        }
+    }
+    
     class Classes
     {
         Subclass()
@@ -208,6 +234,35 @@ class Tests
             A  x.ellipsis = "..."
             A  x.HasProperty("dot")
             A  ObjHasKey(x, "dot") = false
+        }
+        
+        ClassRoot()
+        {
+            Class.prototype.isAClass := true
+            A  Object.isAClass
+            A  TestClass1.isAClass
+            A  Object.HasProperty('isAClass')
+            
+            Class.prototype.DefineMethod('ClassM', () => "yes, ClassM")
+            A  Object.HasMethod('ClassM')
+            A  Object.ClassM() = "yes, ClassM"
+            Class.prototype.DeleteMethod('ClassM')
+            A  Object.HasMethod('ClassM') = false
+        }
+        
+        ObjectRoot()
+        {
+            Object.prototype.isAnObject := true
+            x := {}
+            A  x.isAnObject
+            A  Class.isAnObject
+            A  x.HasProperty('isAnObject')
+            
+            Object.prototype.DefineMethod('ObjectM', () => "yes, ObjectM")
+            A  x.HasMethod('ObjectM')
+            A  x.ObjectM() = "yes, ObjectM"
+            Object.prototype.DeleteMethod('ObjectM')
+            A  x.HasMethod('ClassM') = false
         }
     }
     

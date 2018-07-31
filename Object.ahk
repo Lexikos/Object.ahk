@@ -16,8 +16,7 @@ class _ClassInitMetaFunctions
             ; For `new SomeClass`, derive from `SomeClass.prototype`.
             ObjSetBase(this, b := b.prototype)
         }
-        propdata := Object_v()
-        ObjRawSet(this, "←", propdata)
+        ObjRawSet(this, "←", propdata := new b.←)
         ; Initialize instance variables.
         if f := b.←call["__init"] {
             ; Hackfix: __init will put values directly in propdata via ObjRawSet,
@@ -70,14 +69,21 @@ class Object extends _ClassInitMetaFunctions
                 if ObjHasKey(b := ObjGetBase(this), "←meta")
                     MetaObject_Inherit(this := b, value)
                 ObjSetBase(this, value)
+                ObjSetBase(this.←, value.←)
                 return value
             }
         }
         
         HasProperty(name) {
             m := ObjGetBase(this)
-            return isObject(m.←get[name] || m.←set[name])
-                || ObjHasKey(this.←, name)
+            if isObject(m.←get[name] || m.←set[name])
+                return true
+            propdata := this.←
+            Loop
+                if ObjHasKey(propdata, name)
+                    return true
+            until !(propdata := ObjGetBase(propdata))
+            return false
         }
         
         HasMethod(name) {
@@ -457,12 +463,23 @@ MetaClass(cls) {
     pt_m := ObjGetBase(pt)
     cls_m := ObjGetBase(cls)
     
-    ; Restore the class initialization meta-functions and type identity
-    ; for the `is` operator.
+    ; Set the meta-objects own base for the `is` operator and `.base`.
+    if basecls {
+        ObjSetBase(pt_m, basept := basecls.prototype)
+        ; Inherit superclass instance members via base prototype.
+        MetaObject_Inherit(pt_m, ObjGetBase(basept))
+        ObjSetBase(pt.←, basept.←)
+    } else {
+        ; Ensure all classes retain the meta-functions for subclass init.
+        ; MyClass -> Class.prototype -> Object.prototype -> ...
+        ObjSetBase(pt_m, _ClassInitMetaFunctions)
+    }
     if !ObjHasKey(Class, "←")
         MetaClass(Class)
-    ObjSetBase(cls_m, Class.prototype)
-    ObjSetBase(pt_m, basecls ? (basept := basecls.prototype) : _ClassInitMetaFunctions)
+    ObjSetBase(cls_m, Class_pt := Class.prototype)
+    ; Implement instance members of Class on the class object itself.
+    MetaObject_Inherit(cls_m, ObjGetBase(Class_pt))
+    ObjSetBase(static_data, Class_pt.←)
     
     ; =================================================================
     ; Convert class members to prototype members.
@@ -478,12 +495,6 @@ MetaClass(cls) {
     }
     (_instance) && DefMembers(pt_m, _instance)
     (_static) && DefMembers(cls_m, _static)
-    
-    ; Inherit superclass instance members via base prototype.
-    (basecls) && MetaObject_Inherit(pt_m, ObjGetBase(basept))
-    ; Implement instance members of Class on the class object itself.
-    ; This may cause a recursive call to MetaClass(Class).
-    MetaObject_Inherit(cls_m, ObjGetBase(Class.prototype))
     
     if _instance {
         ; Set _instance.base to allow base.x calls.  This way, the base
@@ -527,8 +538,8 @@ Object(p*) {
     ; skipping stuff that isn't needed, under the assumption that no
     ; one will add __init or __new methods to class Object.
     this := Object_v()
-    this.← := propdata := ObjClone(this)
-    this.base := Object.prototype
+    ObjSetBase(this, b := Object.prototype)
+    ObjRawSet(this, "←", new b.←)
     while ObjLength(p) {
         value := ObjPop(p), key := ObjPop(p)
         ; Could write directly to propdata, but then properties such
