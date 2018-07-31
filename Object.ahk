@@ -383,14 +383,6 @@ Own_Meta(this, maycreate:=true) {
     return om
 }
 
-Object_ReturnArg1(arg1) {
-    return arg1
-}
-
-Object_Throw(message, what) {
-    throw Exception(message, what)
-}
-
 Array(p*) {
     a := Object_v()
     a._ := p
