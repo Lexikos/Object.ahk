@@ -456,7 +456,7 @@ MetaClass(cls) {
         ; Work around base.__Init() not being called by classes with no initial base:
         if _instance.__init && base_instance && base_instance.__init
             ObjRawSet(pt.←method, "__init", Func("Object__init_")
-                .Bind(base_instance.__init, _instance.__init))
+                .Bind(basept.←method["__init"], pt.←method["__init"]))
     }
     if _static {
         ; Although superclass static members are not inherited, static
@@ -466,9 +466,9 @@ MetaClass(cls) {
     }
     
     ; Evaluate static initializers (class variables defined in _static).
-    if _static && ObjHasKey(_static, "__init") && type(_static.__init) == "Func" {
+    if f := cls.←method["__init"] {
         ; static_data not cls, since var initializers use ObjRawSet().
-        _static.__init.call(static_data)
+        f.call(static_data)
     }
 }
 
