@@ -19,13 +19,8 @@ class _ClassInitMetaFunctions
         ObjRawSet(this, "←", propdata := new b.←)
         ; Initialize instance variables.
         if f := b.←call["__init"] {
-            ; Hackfix: __init will put values directly in propdata via ObjRawSet,
-            ; but may also call methods/properties via `this` explicitly, so ←
-            ; needs to refer to propdata.  This will cause issues if any methods
-            ; put values directly in `this` that aren't intended for ←.
-            ObjRawSet(propdata, "←", propdata)
+            ; __init will put values directly in propdata via ObjRawSet.
             f.call(propdata)
-            ObjDelete(propdata, "←")
         }
         ; Call constructor, *if any*.
         if f := b.←call["__new"]
