@@ -160,103 +160,83 @@ class Array extends Object
     class _instance
     {
         __new(p*) {
-            ObjSetBase(this.←, Array._Indexer)
-            ObjRawSet(this, "_", this.←) ; FIXME: array elements should be separate from properties
-            ObjPush(this._, p*)
+            ObjRawSet(this, "←items", p)
         }
         
         Length {
             get {
-                return this._['length']
+                return ObjLength(this.←items)
             }
             set {
                 if !(value is 'integer') || value < 0
                     throw Exception("Invalid value", -1, value)
-                n := ObjLength(this._)
-                if value < n
-                    ObjDelete(this._, value + 1, n)
-                this._['length'] := value
+                if value < (n := ObjLength(items := this.←items))
+                    ObjDelete(items, value + 1, n)
+                if !ObjHasKey(items, value)
+                    ObjRawSet(items, value, "")
                 return value
             }
         }
         
         InsertAt(n, values*) {
-            if (length := this._['length']) != '' {
-                if n <= length
-                    this._['length'] := length + values.Length()
-                else
-                    this._['length'] := n + values.Length() - 1
-            }
-            return ObjInsertAt(this._, n, values*)
+            return ObjInsertAt(this.←items, n, values*)
         }
         
         RemoveAt(n, p*) {
-            if (length := this._['length']) != '' {
-                if n <= length {
-                    numvals := p.Length() ? p[1] : 1
-                    if n + numvals > length
-                        this._['length'] := n - 1
-                    else
-                        this._['length'] := length - numvals
-                }
-            }
-            return ObjRemoveAt(this._, n, p*)
+            return ObjRemoveAt(this.←items, n, p*)
         }
         
         Push(values*) {
-            return this.InsertAt(this.Length + 1, values*)
+            return ObjPush(this.←items, values*)
         }
         
         Pop() {
-            return this.RemoveAt(this.Length)
+            return ObjPop(this.←items)
         }
         
         _NewEnum() {
             return new Array.Enumerator(this)
+        }
+        
+        _[index, p*] {
+            get {
+                if !(index is 'integer')
+                    throw Exception("Invalid index", -2, index)
+                items := this.←items
+                return items[index + (index <= 0 ? ObjLength(items) + 1 : 0), p*]
+            }
+            set {
+                if !(index is 'integer')
+                    throw Exception("Invalid index", -2, index)
+                items := this.←items
+                return items[index + (index <= 0 ? ObjLength(items) + 1 : 0), p*] := value
+            }
         }
     }
     
     class Enumerator
     {
         __new(arr) {
-            this._ := arr._
+            this.arr := arr
         }
         Next(ByRef a, ByRef b:="") {
             if IsByRef(b) {
-                this.e := ObjNewEnum(this._)
                 this.Next := this.base.Next2
+                this.e := ObjNewEnum(this.arr.←)
             }
             else {
                 this.Next := this.base.Next1
+                this.arr := this.arr.←items
                 this.n := 0
             }
             return this.Next(a, b)
         }
         Next1(ByRef a) {
-            a := this._[++this.n]
-            return this.n <= this._.length
+            a := (arr := this.arr)[n := ++this.n]
+            return n <= ObjLength(arr)
         }
         Next2(ByRef a, ByRef b) {
             return this.e.Next(a, b)
-        }
-    }
-    
-    class _Indexer {
-        length {
-            get {
-                return ObjLength(this)
-            }
-        }
-        __get(index, p*) {
-            if index <= 0 && index is 'integer' {
-                return this[this.length + index + 1, p*]
-            }
-        }
-        __set(index, p*) {
-            if index <= 0 && index is 'integer' && p.Length() {
-                value := p.Pop()
-                return this[this.length + index + 1, p*] := value
-            }
         }
     }
 }
@@ -380,10 +360,10 @@ Own_Meta(this, maycreate:=true) {
 
 Array(p*) {
     a := Object_v()
-    a._ := p
-    a.← := p ; FIXME: see Array.__new
-    a.base := Array.prototype
-    p.base := Array._Indexer
+    b := Array.prototype
+    a.← := new b.←
+    a.←items := p
+    a.base := b
     return a
 }
 

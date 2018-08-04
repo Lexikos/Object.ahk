@@ -304,9 +304,7 @@ class Tests
             A  x.HasProperty('Length')
             A  x.HasMethod('Length') = false && x.HasMethod('MaxIndex') = false
             A  x.Length = 4
-            ; Array currently conflates properties and array elements:
-            A  x.HasKey(1) && !x.HasKey(3)
-            A  x.HasProperty(1) && !x.HasProperty(3)
+            A  !x.HasKey(1) && !x.HasProperty(1)
         }
         
         CurlyBraces()
@@ -334,12 +332,12 @@ class Tests
         Indexing()
         {
             x := ['A','B','C']
-            A  x[1] = 'A' && x[2] = 'B' && x[3] = 'C'
-            A  x[-1] = 'C' && x[-2] = 'B' && x[-3] = 'A'
-            A  x[-4] = '' && x[0] = ''
-            A  (x[0] := 'D') = 'D'
-            A  x[-1] = 'D' && x[4] = 'D' && x.length = 4
-            A  (x[-2] := 'c') == 'c' && x[3] == 'c'
+            A  x._[1] = 'A' && x._[2] = 'B' && x._[3] = 'C'
+            A  x._[-1] = 'C' && x._[-2] = 'B' && x._[-3] = 'A'
+            A  x._[-4] = '' && x._[0] = ''
+            A  (x._[0] := 'D') = 'D'
+            A  x._[-1] = 'D' && x._[4] = 'D' && x.length = 4
+            A  (x._[-2] := 'c') == 'c' && x._[3] == 'c'
         }
         
         Length()
@@ -347,16 +345,17 @@ class Tests
             A  ['A','B','C'].length = 3
             A  ['A', ,'B', ,'C'].length = 5
             x := ['A','B','C']
+            A  x.HasKey(1) = false && x.HasProperty(1) = false
             A  (x.Length := 2) = 2
-            A  x.HasKey(3) = false && x.Length = 2 && x[3] = ""
+            A  x.Length = 2 && x._[3] = ""
             A  (x.Length := 4) = 4
-            A  x.HasKey(4) = false && x.Length = 4 && x[4] = ""
+            A  x.Length = 4 && x._[4] = ""
             x.Push('D')
-            A  x[4] = "" && x[5] = "D" && x.Length = 5
+            A  x._[4] = "" && x._[5] = "D" && x.Length = 5
             A  x.RemoveAt(5) = "D" && x.Length = 4
             A  x.RemoveAt(10) = "" && x.Length = 4
             x.InsertAt(10, "X")
-            A  x[10] = "X" && x.Length = 10
+            A  x._[10] = "X" && x.Length = 10
         }
         
         Enumeration()
@@ -369,11 +368,6 @@ class Tests
                 s .= ' ' A_Index ':' v
             A  s = ' 1:10 2:20 3: 4:40'
             
-            s := ''
-            for k, v in x
-                s .= ' ' k ':' v
-            A  s = ' 1:10 2:20 4:40 prop:42'
-            
             x.RemoveAt(2, 2), x.length := 4
             s := ''
             for v in x
@@ -383,7 +377,7 @@ class Tests
             s := ''
             for k, v in x
                 s .= ' ' k ':' v
-            A  s = ' 1:10 2:40 length:4 prop:42'
+            A  s = ' prop:42'
         }
     }
     
