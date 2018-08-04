@@ -273,14 +273,29 @@ class Tests
         {
             Object.prototype.isAnObject := true
             x := {}
-            A  x.isAnObject
-            A  Class.isAnObject
+            A  x.isAnObject = true
+            A  Class.isAnObject = true
             A  x.HasProperty('isAnObject')
             
             Object.prototype.DefineMethod('ObjectM', () => "yes, ObjectM")
             A  x.HasMethod('ObjectM')
             A  x.ObjectM() = "yes, ObjectM"
             Object.prototype.DeleteMethod('ObjectM')
+            A  x.HasMethod('ClassM') = false
+        }
+        
+        ArrayRoot()
+        {
+            Array.prototype.isAnArray := true
+            x := []
+            A  x.isAnArray = true
+            A  Class.isAnArray = ""
+            A  x.HasProperty('isAnArray')
+            
+            Array.prototype.DefineMethod('ArrayM', () => "yes, ArrayM")
+            A  x.HasMethod('ArrayM')
+            A  x.ArrayM() = "yes, ArrayM"
+            Array.prototype.DeleteMethod('ArrayM')
             A  x.HasMethod('ClassM') = false
         }
     }
