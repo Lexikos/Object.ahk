@@ -96,14 +96,14 @@ class Tests
             x.DefineProperty("ps", {set: Func("Test_set").Bind("ps")})
             
             A  x.pg = "pg()"
-            A  (x.pg := 100) = 100  ; Default behaviour: store and return 100
-            A  x.pg = "pg(100)", "Property-get broken by assignment"
+            MustThrow(() => x.pg := 100)
+            A  x.pg = "pg()"
             A  x.pgs = "pgs()"
             A  (x.pgs := 200) = "pgs := 200"
             A  x.pgs = "pgs(200)"
             A  x.ps = ""
             A  (x.ps := 300) = "ps := 300"
-            A  x.ps = 300
+            A  x.ps = ""
             A  y.pg = ""
             
             A  x.HasProperty("pg")
@@ -123,13 +123,10 @@ class Tests
             A  (TestClassDP.inst1 = "inst1()") = false
             
             Test_get(arg1, this) {
-                ; FIXME: Create a "public" method to retrieve property data;
-                ;        or should property data and accessors be mutually exclusive?
-                return arg1 "(" this.←[arg1] ")"
+                return arg1 "(" this["_" arg1] ")"
             }
             Test_set(arg1, this, value) {
-                ; FIXME: As above.
-                this.←[arg1] := value
+                this["_" arg1] := value
                 return arg1 " := " value
             }
         }
@@ -194,6 +191,28 @@ class Tests
             A  y.a = 1
             A  y.HasProperty('a')
             A  y.HasKey('a') = false
+        }
+        
+        DataOverrideProp()
+        {
+            x := new Object
+            x.DefineProperty('p', {get: () => 'fail'})
+            y := new Object
+            y.p := 'pass'
+            y.base := x
+            A  y is x
+            A  y.p = 'pass'
+        }
+        
+        OverrideDataProp()
+        {
+            x := new Object
+            x.p := 'fail'
+            y := new Object
+            y.DefineProperty('p', {get: () => 'pass'})
+            y.base := x
+            A  y is x
+            A  y.p = 'pass'
         }
     }
     
