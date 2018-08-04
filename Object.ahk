@@ -322,9 +322,9 @@ Object__get_(m, this, k, p*) {
 }
 Object__set_(m, this, k, p*) {
     if ObjHasKey(this, "←") || !ObjHasKey(this, "__Class") {
-        if f := m[k]
-            return f.call(this, p*)
         value := p.Pop()
+        if f := m[k]
+            return f.call(this, value, p*)
         return this.←[k, p*] := value
     }
 }
