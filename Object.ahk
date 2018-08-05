@@ -36,27 +36,30 @@ class _Object_Base
             MetaClass(this)  ; Initialize class on first access.
             props := ObjRawGet(this, "←")
         }
-        if SubStr(k, 1, 1) != "←" {  ; Not an inheritable internal property such as .←method.
-            loop {
-                if (prop := ObjRawGet(props, k)) is _Object_Property {
-                    if f := prop[1]
-                        return f.call(this, p*)
-                    ; Iterate to find inherited getter, if any.
-                } else {
-                    if prop != "" || ObjHasKey(props, k)
-                        break
-                    ; Iterate to find inherited value, if any.
-                }
-                if !(props := ObjGetBase(props)) {
-                    if f := this.←method["__getprop"]
-                        return f.call(this, k, p)
-                    break  ; Unusual: default prototype was removed or modified.
-                }
-            }
-            ; Return property value or apply remaining parameters.
-            ; FIXME: Apply item indexing semantics rather than property semantics.
-            return ObjLength(p) ? prop[p*] : prop
+        if SubStr(k, 1, 1) = "←" {  ; An internal property.
+            ; ObjLength(p) isn't checked because we want this.←method[x]
+            ; to assume an empty method array if no methods are defined.
+            return ""
         }
+        loop {
+            if (prop := ObjRawGet(props, k)) is _Object_Property {
+                if f := prop[1]
+                    return f.call(this, p*)
+                ; Iterate to find inherited getter, if any.
+            } else {
+                if prop != "" || ObjHasKey(props, k)
+                    break
+                ; Iterate to find inherited value, if any.
+            }
+            if !(props := ObjGetBase(props)) {
+                if f := this.←method["__getprop"]
+                    return f.call(this, k, p)
+                break  ; Unusual: default prototype was removed or modified.
+            }
+        }
+        ; Return property value or apply remaining parameters.
+        ; FIXME: Apply item indexing semantics rather than property semantics.
+        return ObjLength(p) ? prop[p*] : prop
     }
     __set(k, p*) {
         if !(thisprops := props := ObjRawGet(this, "←")) {
