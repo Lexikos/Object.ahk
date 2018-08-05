@@ -338,6 +338,13 @@ class Tests
             A  x.callme(1,2) == 'callme(2 args)'
             A  x.stored_foo() == 'stored_foo(0 args)'
         }
+        
+        InitClass()
+        {
+            A  TestInitClass.staticvar = 1
+            x := new TestInitClass
+            A  x.sharevar = 2
+        }
     }
     
     class Operators
@@ -679,6 +686,15 @@ class TestMeta extends Object {
         }
         __call(name, args) {
             return 'static: ' name '(' ObjLength(args) ' args)'
+        }
+    }
+}
+
+class TestInitClass extends Object {
+    class _static {
+        __initclass() {
+            this.staticvar := 1
+            this.prototype.sharevar := 2
         }
     }
 }

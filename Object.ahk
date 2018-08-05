@@ -496,6 +496,9 @@ MetaClass(cls) {
         ; static_data not cls, since var initializers use ObjRawSet().
         f.call(static_data)
     }
+    ; Allow for the static equivalent of __new (or static constructor).
+    if f := cls.←method["__initclass"]
+        f.call(cls)
 }
 
 
