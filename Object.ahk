@@ -47,7 +47,12 @@ class _Object_Base
                         break
                     ; Iterate to find inherited value, if any.
                 }
-            } until !(props := ObjGetBase(props))
+                if !(props := ObjGetBase(props)) {
+                    if f := this.←method["__getprop"]
+                        return f.call(this, k, p)
+                    break  ; Unusual: default prototype was removed or modified.
+                }
+            }
             ; Return property value or apply remaining parameters.
             ; FIXME: Apply item indexing semantics rather than property semantics.
             return ObjLength(p) ? prop[p*] : prop
@@ -73,10 +78,11 @@ class _Object_Base
             if !(props := ObjGetBase(props)) {
                 ; Treat properties with only a getter as read-only,
                 ; rather than having the first assignment disable it.
-                ; TODO: invoke a meta-function?
                 if isaccessor
                     throw Exception("Property '" k "' is read-only.", -1, k)
-                break
+                if f := this.←method["__setprop"]
+                    return f.call(this, k, value, p)
+                break  ; Unusual: default prototype was removed or modified.
             }
         }
         ; Store property value or apply remaining parameters.
@@ -92,6 +98,9 @@ class _Object_Base
             MetaClass(this)  ; Initialize class on first access.
         if f := this.←method[k]
             return f.call(this, p*)
+        if f := this.←method["__call"]
+            return f.call(this, k, p)
+        ; Unusual case: default prototype was removed or modified.
         throw Exception("Unknown method", -1, k)
     }
 }
@@ -190,6 +199,23 @@ class Object extends _Object_Base
         _NewEnum() {
             ; FIXME: enumeration of accessor properties should not return the property descriptor
             return ObjNewEnum(this.←)
+        }
+        
+        ; Meta-methods - called only if no member exists in any prototype.
+        ; args is a standard variadic-args object, not an Array.
+        __getprop(name, args) {
+            if ObjLength(args)
+                throw Exception("No object to invoke.", -2, name)
+            return ""
+        }
+        __setprop(name, value, args) {
+            if ObjLength(args)
+                throw Exception("No object to invoke.", -2, name)
+            ObjRawSet(this.←, name, value)
+            return value
+        }
+        __call(name, args) {
+            throw Exception("Unknown method", -2, name)
         }
     }
 }

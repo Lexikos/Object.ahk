@@ -214,6 +214,28 @@ class Tests
             A  y is x
             A  y.p = 'pass'
         }
+        
+        Meta()
+        {
+            x := new Object
+            y := new Object
+            x.DefineMethod('__getprop', (this, name) => y[name])
+            x.DefineMethod('__setprop', (this, name, value) => y[name] := value)
+            x.DefineMethod('__call', (this, name, args) => name '(' ObjLength(args) ')')
+            y.one := 1
+            A  x.one = 1
+            x.foo := 'bar'
+            A  x.foo = 'bar'
+            A  y.foo = 'bar'
+            A  x.hello() = 'hello(0)'
+            
+            x := new Object
+            y := new x
+            y.DefineMethod('__getprop', () => 'called')
+            A  y.foo = 'called'
+            A  x.foo := 'bar'
+            A  y.foo = 'bar'  ; Unlike v1, inherited property takes precedence.
+        }
     }
     
     class Classes
@@ -297,6 +319,24 @@ class Tests
             A  x.ArrayM() = "yes, ArrayM"
             Array.prototype.DeleteMethod('ArrayM')
             A  x.HasMethod('ClassM') = false
+        }
+        
+        Meta()
+        {
+            A  TestMeta.Foo == 'static: Foo is undefined'
+            A  (TestMeta.Foo := 'Bar') == 'Bar'
+            A  TestMeta.stored_Foo == 'Bar'
+            A  TestMeta.Foo == 'static: Foo is undefined'
+            A  TestMeta.Callme(1,2) == 'static: Callme(2 args)'
+            A  TestMeta.stored_Foo() == 'static: stored_Foo(0 args)'
+            
+            x := new TestMeta
+            A  x.foo == 'foo is undefined'
+            A  (x.foo := 'bar') == 'bar'
+            A  x.stored_foo == 'bar'
+            A  x.foo == 'foo is undefined'
+            A  x.callme(1,2) == 'callme(2 args)'
+            A  x.stored_foo() == 'stored_foo(0 args)'
         }
     }
     
@@ -613,6 +653,33 @@ class TestInit extends Object {
         dot := "."
         ellipsis := this.dot this.dot this.dot
         typename := type(this)
+    }
+}
+
+class TestMeta extends Object {
+    class _instance {
+        __getprop(name, args) {
+            ObjLength(args) && base.__getprop(name, args)
+            return name ' is undefined'
+        }
+        __setprop(name, value, args) {
+            return base.__setprop('stored_' name, value, args)
+        }
+        __call(name, args) {
+            return name '(' ObjLength(args) ' args)'
+        }
+    }
+    class _static {
+        __getprop(name, args) {
+            ObjLength(args) && base.__getprop(name, args)
+            return 'static: ' name ' is undefined'
+        }
+        __setprop(name, value, args) {
+            return base.__setprop('stored_' name, value, args)
+        }
+        __call(name, args) {
+            return 'static: ' name '(' ObjLength(args) ' args)'
+        }
     }
 }
 
