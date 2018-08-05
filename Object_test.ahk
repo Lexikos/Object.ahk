@@ -1,9 +1,8 @@
 ﻿
 #Include Object.ahk
 #Include <Yunit\Yunit>
-#Include <Yunit\Stdout>
 
-Yunit.Use(YunitStdout).Test(Tests)
+Yunit.Use(SciTEStdout).Test(Tests)
 
 A(p*) => Yunit.Assert(p*)
 
@@ -12,6 +11,23 @@ MustThrow(f, p*) {
     catch
         return
     Yunit.Assert(false, p*)
+}
+
+class SciTEStdOut
+{
+    Update(Category, Test, Result) {
+        if IsObject(Result) {
+            ; Print error on a separate line in a format the SciTE error
+            ; list recognizes (for highlight and double-click navigation).
+            Details := "`n" StrReplace(Result.File, A_InitialWorkingDir "\")
+                . " (" Result.Line ") : " Result.Message
+            Status := "FAIL"
+        } else {
+            Details := ""
+            Status := "PASS"
+        }
+        FileAppend Status ": " Category "." Test " " Details "`n", "*"
+    }
 }
 
 class Tests
