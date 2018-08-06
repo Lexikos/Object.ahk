@@ -259,57 +259,69 @@ class Array extends Object
 {
     class _instance
     {
-        __new(p*) {
-            ObjRawSet(this, "←items", p)
-        }
-        
         Length {
             get {
-                return ObjLength(this.←items)
+                return ObjLength(this)
             }
             set {
                 if !(value is 'integer') || value < 0
                     throw Exception("Invalid value", -1, value)
-                if value < (n := ObjLength(items := this.←items))
-                    ObjDelete(items, value + 1, n)
-                if !ObjHasKey(items, value)
-                    ObjRawSet(items, value, "")
+                if value < (n := ObjLength(this))
+                    ObjDelete(this, value + 1, n)
+                if !ObjHasKey(this, value)
+                    ObjRawSet(this, value, "")
                 return value
             }
         }
         
         InsertAt(n, values*) {
-            return ObjInsertAt(this.←items, n, values*)
+            return ObjInsertAt(this, n, values*)
         }
         
         RemoveAt(n, p*) {
-            return ObjRemoveAt(this.←items, n, p*)
+            return ObjRemoveAt(this, n, p*)
         }
         
         Push(values*) {
-            return ObjPush(this.←items, values*)
+            return ObjPush(this, values*)
         }
         
         Pop() {
-            return ObjPop(this.←items)
+            return ObjPop(this)
         }
         
         _NewEnum() {
             return new Array.Enumerator(this)
         }
         
+        __getprop(index, args) {
+            if index is 'integer' && index <= 0
+                return this[index + ObjLength(this) + 1, args*]
+            return base.__getprop(index, args)
+        }
+        
+        __setprop(index, value, args) {
+            if index is 'integer'  {
+                if index <= 0
+                    return this[index + ObjLength(this) + 1, args*] := value
+                if !ObjLength(args) {
+                    ObjRawSet(this, index, value)
+                    return value
+                }
+            }
+            return base.__setprop(index, value, args)
+        }
+        
         _[index, p*] {
             get {
                 if !(index is 'integer')
                     throw Exception("Invalid index", -2, index)
-                items := this.←items
-                return items[index + (index <= 0 ? ObjLength(items) + 1 : 0), p*]
+                return this[index + (index <= 0 ? ObjLength(this) + 1 : 0), p*]
             }
             set {
                 if !(index is 'integer')
                     throw Exception("Invalid index", -2, index)
-                items := this.←items
-                return items[index + (index <= 0 ? ObjLength(items) + 1 : 0), p*] := value
+                return this[index + (index <= 0 ? ObjLength(this) + 1 : 0), p*] := value
             }
         }
     }
@@ -318,24 +330,25 @@ class Array extends Object
     {
         __new(arr) {
             this.arr := arr
+            this.n := 0
         }
         Next(ByRef a, ByRef b:="") {
-            if IsByRef(b) {
-                this.Next := this.base.Next2
-                this.e := ObjNewEnum(this.arr.←)
-            }
-            else {
-                this.Next := this.base.Next1
-                this.arr := this.arr.←items
-                this.n := 0
-            }
-            return this.Next(a, b)
+            return (this.Next := this.base["Next" 1+IsByRef(b)]).call(this, a, b)
         }
         Next1(ByRef a) {
             a := (arr := this.arr)[n := ++this.n]
             return n <= ObjLength(arr)
         }
         Next2(ByRef a, ByRef b) {
+            if (a := ++this.n) <= ObjLength(arr := this.arr) {
+                b := arr[a]
+                return true
+            }
+            this.e := ObjNewEnum(this.arr.←)
+            this.Next := this.base.Next2e
+            return this.Next(a, b)
+        }
+        Next2e(ByRef a, ByRef b) {
             return this.e.Next(a, b)
         }
     }
@@ -406,11 +419,9 @@ Object_DefMeth(this, name, func) {
     ObjRawSet(Object_own_←method(this), name, func)
 }
 
-Array(p*) {
-    a := Object_v()
+Array(a*) {
     b := Array.prototype
     a.← := new b.←
-    a.←items := p
     a.base := b
     return a
 }

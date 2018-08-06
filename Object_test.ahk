@@ -290,7 +290,7 @@ class Tests
             A  (x.p0) is Array.prototype
             A  (x.p0[1] := 'x') = 'x'
             A  (x.p0[1]) = 'x'
-            A  y[1] = 'x' ;&& y.Length = 1 && x.p0 = y
+            A  y[1] = 'x' && y.Length = 1 && x.p0 = y
         }
         
         PropIndexMeta()
@@ -322,7 +322,7 @@ class Tests
             A  (x.p0[1] := 'x') = 'x'
             A  (x.p0[1]) = 'x'
             A  (y.realp0) is Array.prototype
-            A  (y.realp0)[1] = 'x' ;&& y.realp0.Length = 1 && x.p0 = y.realp0
+            A  (y.realp0)[1] = 'x' && y.realp0.Length = 1 && x.p0 = y.realp0
             
             ; Test error handling.
             b := {}
@@ -477,8 +477,8 @@ class Tests
         {
             x := [10, 20,, 40]
             A  (x is Array.prototype) && (x is Object.prototype)
-            A  x._[1] = 10 && x._[2] = 20 && x._[3] = "" && x._[4] = 40
-            A  x._[-1] = 40 && x._[-3] = 20
+            A  x[1] = 10 && x[2] = 20 && x[3] = "" && x[4] = 40
+            A  x[-1] = 40 && x[-3] = 20
             A  x.HasProperty('Length')
             A  x.HasMethod('Length') = false && x.HasMethod('MaxIndex') = false
             A  x.Length = 4
@@ -509,6 +509,7 @@ class Tests
     {
         Indexing()
         {
+            ; Explicit item indexing
             x := ['A','B','C']
             A  x._[1] = 'A' && x._[2] = 'B' && x._[3] = 'C'
             A  x._[-1] = 'C' && x._[-2] = 'B' && x._[-3] = 'A'
@@ -516,6 +517,15 @@ class Tests
             A  (x._[0] := 'D') = 'D'
             A  x._[-1] = 'D' && x._[4] = 'D' && x.length = 4
             A  (x._[-2] := 'c') == 'c' && x._[3] == 'c'
+            
+            ; Redirected properties
+            x := ['A','B','C']
+            A  x[1] = 'A' && x[2] = 'B' && x[3] = 'C'
+            A  x[-1] = 'C' && x[-2] = 'B' && x[-3] = 'A'
+            A  x[-4] = '' && x[0] = ''
+            A  (x[0] := 'D') = 'D'
+            A  x[-1] = 'D' && x[4] = 'D' && x.length = 4
+            A  (x[-2] := 'c') == 'c' && x[3] == 'c'
         }
         
         Length()
@@ -525,15 +535,15 @@ class Tests
             x := ['A','B','C']
             A  x.HasKey(1) = false && x.HasProperty(1) = false
             A  (x.Length := 2) = 2
-            A  x.Length = 2 && x._[3] = ""
+            A  x.Length = 2 && x[3] = ""
             A  (x.Length := 4) = 4
-            A  x.Length = 4 && x._[4] = ""
+            A  x.Length = 4 && x[4] = ""
             x.Push('D')
-            A  x._[4] = "" && x._[5] = "D" && x.Length = 5
+            A  x[4] = "" && x[5] = "D" && x.Length = 5
             A  x.RemoveAt(5) = "D" && x.Length = 4
             A  x.RemoveAt(10) = "" && x.Length = 4
             x.InsertAt(10, "X")
-            A  x._[10] = "X" && x.Length = 10
+            A  x[10] = "X" && x.Length = 10
         }
         
         Enumeration()
@@ -555,7 +565,25 @@ class Tests
             s := ''
             for k, v in x
                 s .= ' ' k ':' v
-            A  s = ' prop:42'
+            A  s = ' 1:10 2:40 3: 4: prop:42'
+        }
+        
+        VariadicCall()
+        {
+            fn(args*) {
+                r := ''
+                loop ObjLength(args)
+                    r .= args[A_Index] ','
+                return r
+            }
+            
+            x := new Array
+            x[1] := 'a'
+            x.Push('b', 'c')
+            A  fn(x*) = 'a,b,c,'
+            
+            x := ['d', 'e']
+            A  fn(x*) = 'd,e,'
         }
     }
     
