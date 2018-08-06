@@ -20,7 +20,7 @@ class _Object_Base
             ; For `new SomeClass`, derive from `SomeClass.prototype`.
             ObjSetBase(this, b := b.prototype)
         }
-        ObjRawSet(this, "←", propdata := new b.←)
+        ObjRawSet(this, "←", propdata := Object_b(b.←))
         ; Initialize instance variables.
         if f := b.←method["__init"] {
             ; __init will put values directly in propdata via ObjRawSet.
@@ -421,12 +421,17 @@ Object_DefMeth(this, name, func) {
 
 Array(a*) {
     b := Array.prototype
-    a.← := new b.←
+    a.← := Object_b(b.←)
     a.base := b
     return a
 }
 
 Object_v(p*) {
+    return p
+}
+
+Object_b(base, p*) {
+    ObjSetBase(p, base)
     return p
 }
 
@@ -563,7 +568,7 @@ Object(p*) {
     ; one will add __init or __new methods to class Object.
     this := Object_v()
     ObjSetBase(this, b := Object.prototype)
-    ObjRawSet(this, "←", new b.←)
+    ObjRawSet(this, "←", Object_b(b.←))
     while ObjLength(p) {
         value := ObjPop(p), key := ObjPop(p)
         ; Could write directly to propdata, but then properties such
