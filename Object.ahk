@@ -43,8 +43,13 @@ class _Object_Base
         }
         loop {
             if (prop := ObjRawGet(props, k)) is _Object_Property {
-                if f := prop[1]
+                if f := prop[1] {
+                    if Func_CannotAcceptParams(f, 2) {
+                        prop := f.call(this)
+                        break  ; Apply [p*] below.
+                    }
                     return f.call(this, p*)
+                }
                 ; Iterate to find inherited getter, if any.
             } else {
                 if prop != "" || ObjHasKey(props, k)
@@ -52,8 +57,13 @@ class _Object_Base
                 ; Iterate to find inherited value, if any.
             }
             if !(props := ObjGetBase(props)) {
-                if f := this.←method["__getprop"]
+                if f := this.←method["__getprop"] {
+                    if Func_CannotAcceptParams(f, 3) {
+                        prop := f.call(this, k)
+                        break  ; Apply [p*] below.
+                    }
                     return f.call(this, k, p)
+                }
                 break  ; Unusual: default prototype was removed or modified.
             }
         }
@@ -69,8 +79,14 @@ class _Object_Base
         value := p.Pop(), isaccessor := false
         loop {
             if (prop := ObjRawGet(props, k)) is _Object_Property {
-                if f := prop[2]
+                if f := prop[2] {
+                    if Func_CannotAcceptParams(f, 3) {
+                        if ObjLength(p)
+                            return (this[k])[p*] := value  ; Apply [p*] to property value.
+                        return f.call(this, value)
+                    }
                     return f.call(this, value, p*)
+                }
                 isaccessor := true
                 ; Iterate to find inherited setter, if any.
             } else {
@@ -83,8 +99,14 @@ class _Object_Base
                 ; rather than having the first assignment disable it.
                 if isaccessor
                     throw Exception("Property '" k "' is read-only.", -1, k)
-                if f := this.←method["__setprop"]
+                if f := this.←method["__setprop"] {
+                    if Func_CannotAcceptParams(f, 4) {
+                        if ObjLength(p)
+                            return (this[k])[p*] := value  ; Apply [p*] to property value.
+                        return f.call(this, k, value)
+                    }
                     return f.call(this, k, value, p)
+                }
                 break  ; Unusual: default prototype was removed or modified.
             }
         }
@@ -206,13 +228,13 @@ class Object extends _Object_Base
         
         ; Meta-methods - called only if no member exists in any prototype.
         ; args is a standard variadic-args object, not an Array.
-        __getprop(name, args) {
-            if ObjLength(args)
+        __getprop(name, args:=0) {
+            if args && ObjLength(args)
                 throw Exception("No object to invoke.", -2, name)
             return ""
         }
-        __setprop(name, value, args) {
-            if ObjLength(args)
+        __setprop(name, value, args:=0) {
+            if args && ObjLength(args)
                 throw Exception("No object to invoke.", -2, name)
             ObjRawSet(this.←, name, value)
             return value
@@ -395,6 +417,12 @@ Array(p*) {
 
 Object_v(p*) {
     return p
+}
+
+Func_CannotAcceptParams(f, n) {
+    mp := "", iv := false
+    try mp := f.MaxParams, iv := f.IsVariadic
+    return mp is 'integer' && mp < n && !iv
 }
 
 ; =====================================================================

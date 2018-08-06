@@ -245,12 +245,93 @@ class Tests
             A  y.foo = 'bar'
             A  x.hello() = 'hello(0)'
             
+            ; Unlike v1, inherited property takes precedence.
             x := new Object
             y := new x
             y.DefineMethod('__getprop', () => 'called')
             A  y.foo = 'called'
             A  x.foo := 'bar'
-            A  y.foo = 'bar'  ; Unlike v1, inherited property takes precedence.
+            A  y.foo = 'bar'
+        }
+        
+        PropIndex()
+        {
+            ; Test handling of index args with variadic property.
+            x := new Object
+            x.DefineProperty('pv', {
+                get: (this, args*) => 'get ' ObjLength(args),
+                set: (this, value, args*) => 'set ' ObjLength(args) ' = ' value})
+            A  (x.pv) = 'get 0'
+            A  (x.pv['a']) = 'get 1'
+            A  (x.pv['a','b']) = 'get 2'
+            A  (x.pv := 'x') = 'set 0 = x'
+            A  (x.pv['a'] := 'y') = 'set 1 = y'
+            A  (x.pv['a','b'] := 'z') = 'set 2 = z'
+            
+            ; Test handling of index with single standard arg.
+            x.DefineProperty('p1', {
+                get: (this, arg) => 'get ' arg,
+                set: (this, value, arg) => 'set ' arg ' = ' value})
+            MustThrow(() => x.p1)
+            A  (x.p1['a']) = 'get a'
+            A  (x.p1['a','b']) = 'get a'
+            A  (x.p1['a'] := 'x') = 'set a = x'
+            A  (x.p1['a','b'] := 'y') = 'set a = y'
+            
+            ; Test automatic application of [index] to the result of a
+            ; property when the property does not accept index args.
+            y := ''
+            x.DefineProperty('p0', {
+                get: (this) => y,
+                set: (this, value) => y := value})
+            A  (x.p0) = ''
+            MustThrow(() => x.p0[1])
+            A  (x.p0 := []) is Array.prototype
+            A  (x.p0) is Array.prototype
+            A  (x.p0[1] := 'x') = 'x'
+            A  (x.p0[1]) = 'x'
+            A  y[1] = 'x' ;&& y.Length = 1 && x.p0 = y
+        }
+        
+        PropIndexMeta()
+        {
+            ; Test handling of index args.
+            x := new Object
+            x.DefineMethod('__getprop'
+                , (this, name, args) => 'get ' name ' ' ObjLength(args))
+            x.DefineMethod('__setprop'
+                , (this, name, value, args) => 'set ' name ' ' ObjLength(args) ' = ' value)
+            A  (x.pv) = 'get pv 0'
+            A  (x.pv['a']) = 'get pv 1'
+            A  (x.pv['a','b']) = 'get pv 2'
+            A  (x.pv := 'x') = 'set pv 0 = x'
+            A  (x.pv['a'] := 'y') = 'set pv 1 = y'
+            A  (x.pv['a','b'] := 'z') = 'set pv 2 = z'
+            
+            ; Test automatic application of [index] to the result of a
+            ; property when the meta-method does not accept index args.
+            y := {}
+            x.DefineMethod('__getprop'
+                , (this, name) => y['real' name])
+            x.DefineMethod('__setprop'
+                , (this, name, value) => y['real' name] := value)
+            A  (x.p0) = ''
+            MustThrow(() => x.p0[1])
+            A  (x.p0 := []) is Array.prototype
+            A  (x.p0) is Array.prototype
+            A  (x.p0[1] := 'x') = 'x'
+            A  (x.p0[1]) = 'x'
+            A  (y.realp0) is Array.prototype
+            A  (y.realp0)[1] = 'x' ;&& y.realp0.Length = 1 && x.p0 = y.realp0
+            
+            ; Test error handling.
+            b := {}
+            MustThrow(() => (b.no)[1]) ; Baseline (separate indexing)
+            MustThrow(() =>  b.no [1]) ; No __getprop
+            MustThrow(() =>  x.no [1]) ; __getprop without args
+            MustThrow(() => (b.no)[1] := 2)
+            MustThrow(() =>  b.no [1] := 2)
+            MustThrow(() =>  x.no [1] := 2)
         }
     }
     
