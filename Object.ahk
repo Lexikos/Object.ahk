@@ -27,8 +27,21 @@ class _Object_Base
             f.call(propdata)
         }
         ; Call constructor, *if any*.
-        if f := b.←method["__new"]
+        if f := this.←method["__new"]
             f.call(this, p*)
+    }
+    __delete() {
+        if f := this.←method["__delete"]
+            f.call(this)
+        ; Last ref is being released, plus `this`.
+        ; Any more means __delete resurrected the object.
+        ObjAddRef(&this)
+        if ObjRelease(&this) > 2
+            return
+        ; Disable accidental __delete meta-functions.
+        ObjSetBase(this.←, "")
+        if m := ObjRawGet(this, "←method")
+            ObjSetBase(m, "")
     }
     ; Called on classes and instances:
     __get(k, p*) {

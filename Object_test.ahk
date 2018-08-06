@@ -333,6 +333,19 @@ class Tests
             MustThrow(() =>  b.no [1] := 2)
             MustThrow(() =>  x.no [1] := 2)
         }
+        
+        _Delete()
+        {
+            x := {}
+            d := 0
+            x.DefineMethod('__delete', () => ++d)
+            y := new x
+            A  d = 0
+            y := ''
+            A  d = 1
+            x := ''
+            A  d = 2
+        }
     }
     
     class Classes
