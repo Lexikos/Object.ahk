@@ -235,8 +235,7 @@ class Object extends _Object_Base
             return c
         }
         _NewEnum() {
-            ; FIXME: enumeration of accessor properties should not return the property descriptor
-            return ObjNewEnum(this.←)
+            return new Object.Enumerator(this)
         }
         
         ; Meta-methods - called only if no member exists in any prototype.
@@ -254,6 +253,24 @@ class Object extends _Object_Base
         }
         __call(name, args) {
             throw Exception("Unknown method", -2, name)
+        }
+    }
+    
+    class Enumerator
+    {
+        __new(obj) {
+            this.obj := obj
+            this.e := ObjNewEnum(obj.←)
+        }
+        
+        Next(ByRef a, ByRef b:="") {
+            if !this.e.Next(a, b)
+                return false
+            ; For now, exceptions are suppressed rather than locating
+            ; the property getter and determining if it requires an index.
+            if b is _Object_Property && IsByRef(b)
+                try b := this.obj[a]
+            return true
         }
     }
 }

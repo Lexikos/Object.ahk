@@ -182,6 +182,33 @@ class Tests
             
             MustThrow(() => TestClass1.base := 1, "Class.base assignment did not throw")
         }
+        
+        Enumeration()
+        {
+            x := {one: 1, two: 2, three: 3}
+            s := ''
+            for k, v in x
+                s .= ' ' k ':' v
+            A  s = ' one:1 three:3 two:2'
+            
+            x.DefineProperty('four', {get: () => 4})
+            s := ''
+            for k, v in x
+                s .= ' ' k ':' v
+            A  s = ' four:4 one:1 three:3 two:2'
+            
+            x := {}
+            called := false
+            x.DefineProperty('five', {get: () => called := true})
+            s := ''
+            for k in x
+                s .= ' ' k
+            A  s = ' five' && not called
+            s := ''
+            for k, v in x
+                s .= ' ' k
+            A  s = ' five' && called
+        }
     }
     
     class Prototype
