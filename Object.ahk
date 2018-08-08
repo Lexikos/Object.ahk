@@ -422,9 +422,23 @@ class Map extends Object
             return cl
         }
         
-        ; _NewEnum() {
-            ; TODO
-        ; }
+        _NewEnum() {
+            return new Map.Enumerator(this)
+        }
+    }
+    
+    class Enumerator
+    {
+        __new(map) {
+            this.e := ObjNewEnum(map.←map)
+        }
+        
+        Next(ByRef a, ByRef b) {
+            if !this.e.Next(a, b)
+                return false
+            a := RegExReplace(a, "\x01(.)", "$1")
+            return true
+        }
     }
 }
 

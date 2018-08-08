@@ -651,6 +651,11 @@ class Tests
         A  m.Count = 3
         A  m.Has('abc') && m.Has('ABC') && m.Has('Abc') = false
         
+        s := ''
+        for k, v in m
+            s .= ' ' k ':' v
+        A  s = ' ABC:33 abc:11 xyz:str'
+        
         m2 := m.Clone()
         A  m != m2 && m2.Item['abc'] = 11 && m2.Item['ABC'] = 33
             && m2.Item['xyz'] = 'str' && m2.Count = 3
