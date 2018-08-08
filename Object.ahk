@@ -81,8 +81,7 @@ class _Object_Base
             }
         }
         ; Return property value or apply remaining parameters.
-        ; FIXME: Apply item indexing semantics rather than property semantics.
-        return ObjLength(p) ? prop[p*] : prop
+        return ObjLength(p) ? prop.Item[p*] : prop
     }
     __set(k, p*) {
         if !(thisprops := props := ObjRawGet(this, "←")) {
@@ -95,7 +94,7 @@ class _Object_Base
                 if f := prop[2] {
                     if Func_CannotAcceptParams(f, 3) {
                         if ObjLength(p)
-                            return (this[k])[p*] := value  ; Apply [p*] to property value.
+                            return this[k].Item[p*] := value  ; Apply [p*] to property value.
                         return f.call(this, value)
                     }
                     return f.call(this, value, p*)
@@ -115,7 +114,7 @@ class _Object_Base
                 if f := this.←method["__setprop"] {
                     if Func_CannotAcceptParams(f, 4) {
                         if ObjLength(p)
-                            return (this[k])[p*] := value  ; Apply [p*] to property value.
+                            return this[k].Item[p*] := value  ; Apply [p*] to property value.
                         return f.call(this, k, value)
                     }
                     return f.call(this, k, value, p)
@@ -124,11 +123,9 @@ class _Object_Base
             }
         }
         ; Store property value or apply remaining parameters.
-        ; FIXME: Apply item indexing semantics rather than property semantics.
         if ObjLength(p)
-            return prop[p*] := value
+            return prop.Item[p*] := value
         ObjRawSet(thisprops, k, value)
-        ; thisprops[k] := value
         return value
     }
     __call(k, p*) {
@@ -342,7 +339,7 @@ class Array extends Object
             return base.__setprop(index, value, args)
         }
         
-        _[index, p*] {
+        Item[index, p*] {
             get {
                 if !(index is 'integer')
                     throw Exception("Invalid index", -2, index)
@@ -384,32 +381,36 @@ class Array extends Object
     }
 }
 
-class Map_Key {
-}
 class Map extends Object
 {
     class _instance
     {
         __new() {
-            ObjRawSet(this, Map_Key, Object_v())
+            ObjRawSet(this, "←map", Object_v())
         }
         
         Has(key) {
-            return ObjHasKey(this[Map_Key], RegExReplace(key, "\p{Lu}|\x01", chr(1) "$0"))
+            return ObjHasKey(this.←map, RegExReplace(key, "\p{Lu}|\x01", chr(1) "$0"))
         }
         
-        Get(key) {
-            return this[Map_Key, RegExReplace(key, "\p{Lu}|\x01", chr(1) "$0")]
-        }
-        
-        Set(key, value) {
-            ObjRawSet(this[Map_Key], RegExReplace(key, "\p{Lu}|\x01", chr(1) "$0"), value)
-            return value
+        Item[key, p*] {
+            get {
+                v := ObjRawGet(this.←map, RegExReplace(key, "\p{Lu}|\x01", chr(1) "$0"))
+                return ObjLength(p) ? v.Item[p*] : v
+            }
+            set {
+                if ObjLength(p) {
+                    v := ObjRawGet(this.←map, RegExReplace(key, "\p{Lu}|\x01", chr(1) "$0"))
+                    return v.Item[p*] := value
+                }
+                ObjRawSet(this.←map, RegExReplace(key, "\p{Lu}|\x01", chr(1) "$0"), value)
+                return value
+            }
         }
         
         Count {
             get {
-                return ObjCount(this[Map_Key])
+                return ObjCount(this.←map)
             }
             set {
                 throw Exception("Count is read-only", -1)
@@ -417,7 +418,7 @@ class Map extends Object
         }
         
         Clone() {
-            ObjRawSet(cl := base.Clone(), Map_Key, ObjClone(this[Map_Key]))
+            ObjRawSet(cl := base.Clone(), "←map", ObjClone(this.←map))
             return cl
         }
         

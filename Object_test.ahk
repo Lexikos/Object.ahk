@@ -551,12 +551,17 @@ class Tests
         {
             ; Explicit item indexing
             x := ['A','B','C']
-            A  x._[1] = 'A' && x._[2] = 'B' && x._[3] = 'C'
-            A  x._[-1] = 'C' && x._[-2] = 'B' && x._[-3] = 'A'
-            A  x._[-4] = '' && x._[0] = ''
-            A  (x._[0] := 'D') = 'D'
-            A  x._[-1] = 'D' && x._[4] = 'D' && x.length = 4
-            A  (x._[-2] := 'c') == 'c' && x._[3] == 'c'
+            A  x.Item[1] = 'A' && x.Item[2] = 'B' && x.Item[3] = 'C'
+            A  x.Item[-1] = 'C' && x.Item[-2] = 'B' && x.Item[-3] = 'A'
+            A  x.Item[-4] = '' && x.Item[0] = ''
+            A  (x.Item[0] := 'D') = 'D'
+            A  x.Item[-1] = 'D' && x.Item[4] = 'D' && x.length = 4
+            A  (x.Item[-2] := 'c') == 'c' && x.Item[3] == 'c'
+            
+            x.Item[1] := []
+            x.Item[1,1] := 'X'
+            x.Item[1,2] := 'Y'
+            A  x.Item[1,1] x.Item[1,-1] == 'XY'
             
             ; Redirected properties
             x := ['A','B','C']
@@ -566,6 +571,11 @@ class Tests
             A  (x[0] := 'D') = 'D'
             A  x[-1] = 'D' && x[4] = 'D' && x.length = 4
             A  (x[-2] := 'c') == 'c' && x[3] == 'c'
+            
+            x[1] := []
+            x[1,1] := 'X'
+            x[1,2] := 'Y'
+            A  x[1,1] x[1,-1] == 'XY'
         }
         
         Length()
@@ -630,15 +640,26 @@ class Tests
     Map()
     {
         m := new Map
-        A  m.set('abc', 11) = 11
-        A  m.get('abc') = 11
+        A  (m.Item['abc'] := 11) = 11
+        A  m.Item['abc'] = 11
         A  m.Count = 1
-        A  m.set('ABC', 33) = 33
-        A  m.get('ABC') = 33
-        A  m.get('abc') = 11
+        A  (m.Item['ABC'] := 33) = 33
+        A  m.Item['ABC'] = 33
+        A  m.Item['abc'] = 11
         A  m.Count = 2
-        m.set('xyz', 'str')
+        m.Item['xyz'] := 'str'
         A  m.Count = 3
+        A  m.Has('abc') && m.Has('ABC') && m.Has('Abc') = false
+        
+        m2 := m.Clone()
+        A  m != m2 && m2.Item['abc'] = 11 && m2.Item['ABC'] = 33
+            && m2.Item['xyz'] = 'str' && m2.Count = 3
+        
+        m.Item['sub'] := new Map
+        m.Item['sub','item1'] := -1
+        m.Item['sub','item2'] := -2
+        A  m.Item['sub','item1'] = -1 && m.Item['sub','item2'] := -2
+        A  m.Item['sub'].Count = 2
     }
     
     class Limitations
