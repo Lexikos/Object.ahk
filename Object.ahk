@@ -182,6 +182,10 @@ class Object extends _Object_Base
             return false
         }
         
+        HasOwnProperty(name) {
+            return ObjHasKey(this.←, name)
+        }
+        
         HasMethod(name) {
             return isObject(this.←method[name])
         }
@@ -220,9 +224,6 @@ class Object extends _Object_Base
         }
         GetAddress(p) {
             return ObjGetAddress(this.←, p)
-        }
-        HasKey(p) {
-            return ObjHasKey(this.←, p)
         }
         Clone() {
             c := ObjClone(this)

@@ -61,13 +61,18 @@ class Tests
             , "Method seen as property"
         }
         
-        HasKey()
+        HasOwnProperty()
         {
             x := new TestClass1
-            A  x.HasKey('initprop')
-            A  !x.HasKey('adhocprop')
+            A  x.HasOwnProperty('initprop')
+            A  x.HasOwnProperty('adhocprop') = false
             x.adhocprop := 2
-            A  x.HasKey('adhocprop')
+            A  x.HasOwnProperty('adhocprop')
+            y := new x
+            y.DefineProperty('xxx', {get: () => 10})
+            A  y.xxx = 10 && y.HasOwnProperty('xxx')
+            A  y.HasProperty('adhocprop') = true
+            A  y.HasOwnProperty('adhocprop') = false
         }
         
         HasMethod()
@@ -233,7 +238,7 @@ class Tests
             y := new x
             A  y.a = 1
             A  y.HasProperty('a')
-            A  y.HasKey('a') = false
+            A  y.HasOwnProperty('a') = false
         }
         
         DataOverrideProp()
@@ -522,7 +527,7 @@ class Tests
             A  x.HasProperty('Length')
             A  x.HasMethod('Length') = false && x.HasMethod('MaxIndex') = false
             A  x.Length = 4
-            A  !x.HasKey(1) && !x.HasProperty(1)
+            A  !x.HasProperty(1)
         }
         
         CurlyBraces()
@@ -583,7 +588,7 @@ class Tests
             A  ['A','B','C'].length = 3
             A  ['A', ,'B', ,'C'].length = 5
             x := ['A','B','C']
-            A  x.HasKey(1) = false && x.HasProperty(1) = false
+            A  x.HasProperty(1) = false
             A  (x.Length := 2) = 2
             A  x.Length = 2 && x[3] = ""
             A  (x.Length := 4) = 4
