@@ -704,6 +704,16 @@ class Tests
                 s .= ' ' type(k) ':' k ':' v
             A  s = ' Integer:1:i String:1:is String:1.0:fs Float:1.0:f'
         }
+        
+        Delete()
+        {
+            m := new Map
+            m.Item['x'] := 1
+            m.Item['y'] := 2
+            A  m.Has('x') && m.Has('y')
+            m.Delete('x')
+            A  m.Has('x') = false && m.Has('y')
+        }
     }
     
     class Limitations
