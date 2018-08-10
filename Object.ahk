@@ -391,20 +391,20 @@ class Map extends Object
         }
         
         Has(key) {
-            return ObjHasKey(this.←map, RegExReplace(key, "\p{Lu}|\x01", chr(1) "$0"))
+            return ObjHasKey(this.←map, Map_key(key))
         }
         
         Item[key, p*] {
             get {
-                v := ObjRawGet(this.←map, RegExReplace(key, "\p{Lu}|\x01", chr(1) "$0"))
+                v := ObjRawGet(this.←map, Map_key(key))
                 return ObjLength(p) ? v.Item[p*] : v
             }
             set {
                 if ObjLength(p) {
-                    v := ObjRawGet(this.←map, RegExReplace(key, "\p{Lu}|\x01", chr(1) "$0"))
+                    v := ObjRawGet(this.←map, Map_key(key))
                     return v.Item[p*] := value
                 }
-                ObjRawSet(this.←map, RegExReplace(key, "\p{Lu}|\x01", chr(1) "$0"), value)
+                ObjRawSet(this.←map, Map_key(key), value)
                 return value
             }
         }
@@ -437,10 +437,25 @@ class Map extends Object
         Next(ByRef a, ByRef b) {
             if !this.e.Next(a, b)
                 return false
-            a := RegExReplace(a, "\x01(.)", "$1")
+            a := Map_unkey(a)
             return true
         }
     }
+}
+
+Map_key(key) {
+    ; Make keys case-sensitive and differentiate "1" from 1.
+    return Type(key) = 'String'
+        ? RegExReplace(key, "\p{Lu}|\x01|^[+-.]?\d", chr(1) "$0")
+        : key
+}
+
+Map_unkey(key) {
+    return Type(key) = 'String'
+        ? key is 'float' ; Never true for keys that are originally strings, due to escaping.
+            ? Float(key)
+            : RegExReplace(key, "\x01(.)", "$1")
+        : key
 }
 
 Object__init_(fsuper, f, this) {

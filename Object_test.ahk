@@ -642,34 +642,68 @@ class Tests
         }
     }
     
-    Map()
+    class Map
     {
-        m := new Map
-        A  (m.Item['abc'] := 11) = 11
-        A  m.Item['abc'] = 11
-        A  m.Count = 1
-        A  (m.Item['ABC'] := 33) = 33
-        A  m.Item['ABC'] = 33
-        A  m.Item['abc'] = 11
-        A  m.Count = 2
-        m.Item['xyz'] := 'str'
-        A  m.Count = 3
-        A  m.Has('abc') && m.Has('ABC') && m.Has('Abc') = false
+        Basics()
+        {
+            m := new Map
+            A  (m.Item['abc'] := 11) = 11
+            A  m.Item['abc'] = 11
+            A  m.Count = 1
+            A  (m.Item['ABC'] := 33) = 33
+            A  m.Item['ABC'] = 33
+            A  m.Item['abc'] = 11
+            A  m.Count = 2
+            m.Item['xyz'] := 'str'
+            A  m.Count = 3
+            A  m.Has('abc') && m.Has('ABC') && m.Has('Abc') = false
+            
+            s := ''
+            for k, v in m
+                s .= ' ' k ':' v
+            A  s = ' ABC:33 abc:11 xyz:str'
+            
+            m2 := m.Clone()
+            A  m != m2 && m2.Item['abc'] = 11 && m2.Item['ABC'] = 33
+                && m2.Item['xyz'] = 'str' && m2.Count = 3
+        }
         
-        s := ''
-        for k, v in m
-            s .= ' ' k ':' v
-        A  s = ' ABC:33 abc:11 xyz:str'
+        SubItem()
+        {
+            m := new Map
+            m.Item['sub'] := new Map
+            m.Item['sub','item1'] := -1
+            m.Item['sub','item2'] := -2
+            A  m.Item['sub','item1'] = -1 && m.Item['sub','item2'] := -2
+            A  m.Item['sub'].Count = 2
+        }
         
-        m2 := m.Clone()
-        A  m != m2 && m2.Item['abc'] = 11 && m2.Item['ABC'] = 33
-            && m2.Item['xyz'] = 'str' && m2.Count = 3
-        
-        m.Item['sub'] := new Map
-        m.Item['sub','item1'] := -1
-        m.Item['sub','item2'] := -2
-        A  m.Item['sub','item1'] = -1 && m.Item['sub','item2'] := -2
-        A  m.Item['sub'].Count = 2
+        Types()
+        {
+            m := new Map
+            m.Item['s'] := 'str'
+            m.Item[1] := 'int'
+            m.Item[Map] := 'obj'
+            A  m.Item['s'] = 'str' && m.Item[1] = 'int' && m.Item[Map] = 'obj'
+            
+            s := ''
+            for k, v in m
+                s .= ' ' type(k) ':' (IsObject(k) ? &k : k) ':' v
+            A  s = ' Integer:1:int Class:' (&Map) ':obj String:s:str'
+            
+            m := new Map
+            m.Item['1'] := 'is'
+            m.Item[1] := 'i'
+            A  m.Item['1'] = 'is' && m.Item[1] = 'i'
+            m.Item[1.0] := 'f'
+            m.Item['1.0'] := 'fs'
+            A  m.Item['1.0'] = 'fs' && m.Item[1.0] = 'f'
+            
+            s := ''
+            for k, v in m
+                s .= ' ' type(k) ':' k ':' v
+            A  s = ' Integer:1:i String:1:is String:1.0:fs Float:1.0:f'
+        }
     }
     
     class Limitations
