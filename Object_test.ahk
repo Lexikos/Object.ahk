@@ -658,6 +658,8 @@ class Tests
             A  m.Count = 3
             A  m.Has('abc') && m.Has('ABC') && m.Has('Abc') = false
             
+            MustThrow(() => m.Count := 4)
+            
             s := ''
             for k, v in m
                 s .= ' ' k ':' v

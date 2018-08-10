@@ -413,9 +413,6 @@ class Map extends Object
             get {
                 return ObjCount(this.←map)
             }
-            set {
-                throw Exception("Count is read-only", -1)
-            }
         }
         
         Delete(key) {
