@@ -447,7 +447,7 @@ class Map extends Object
 Map_key(key) {
     ; Make keys case-sensitive and differentiate "1" from 1.
     return Type(key) = 'String'
-        ? RegExReplace(key, "\p{Lu}|\x01|^[+-.]?\d", chr(1) "$0")
+        ? RegExReplace(key, "\p{Lu}|\x01|^\s*[+-]?\.?\d", chr(1) "$0")
         : key
 }
 

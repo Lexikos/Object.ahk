@@ -705,6 +705,15 @@ class Tests
             for k, v in m
                 s .= ' ' type(k) ':' k ':' v
             A  s = ' Integer:1:i String:1:is String:1.0:fs Float:1.0:f'
+            
+            m := new Map
+            m.Item[-.1] := '-f' ; Normally coerced to "-0.1"
+            m.Item["-.1"] := '-fs'
+            m.Item["-0.1"] := '-0fs'
+            s := ''
+            for k, v in m
+                s .= ' ' type(k) ':' k ':' v
+            A  s = ' String:-.1:-fs String:-0.1:-0fs Float:' (-.1) ':-f'
         }
         
         Delete()
