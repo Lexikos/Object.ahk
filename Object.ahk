@@ -142,13 +142,6 @@ class _Object_Base
 
 class Object extends _Object_Base
 {
-    class _static
-    {
-        new(p*) {
-            return new this(p*)
-        }
-    }
-    
     class _instance
     {
         base {
@@ -275,6 +268,12 @@ class Object extends _Object_Base
 
 class Class extends Object
 {
+    class _instance
+    {
+        new(p*) {
+            return new this(p*)
+        }
+    }
 }
 
 Value__call(value, n, p*) {

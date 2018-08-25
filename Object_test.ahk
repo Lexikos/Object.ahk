@@ -493,6 +493,16 @@ class Tests
             x := new TestInitClass
             A  x.sharevar = 2
         }
+        
+        NewMethod()
+        {
+            x := TestNew1.new()
+            A  x.x = '__init1' && x.y = '__new1'
+            A  x is TestNew1.prototype
+            x := TestNew2.new()
+            A  x.x = '__init1' && x.y = '__new1'
+            A  x.a = '__init2' && x.b = '__new2'
+        }
     }
     
     class Operators
