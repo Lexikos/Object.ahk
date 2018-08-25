@@ -474,8 +474,10 @@ Object_own_←method(this) {
 }
 
 Object_DefProp(this, name, propdesc) {
-    ObjRawSet(this.←, name, prop := new _Object_Property)
-    prop[1] := propdesc.get, prop[2] := propdesc.set
+    if !((prop := ObjRawGet(this.←, name)) is _Object_Property)
+        ObjRawSet(this.←, name, prop := new _Object_Property)
+    (get := propdesc.get) && prop[1] := get
+    (set := propdesc.set) && prop[2] := set
 }
 Object_DefMeth(this, name, func) {
     ObjRawSet(Object_own_←method(this), name, func)

@@ -143,6 +143,12 @@ class Tests
             A  TestClassDP.HasProperty("inst1") = false
             A  (TestClassDP.inst1 = "inst1()") = false
             
+            x := new Object
+            x.DefineProperty("p", {get: Func("Test_get").Bind("p")})
+            x.DefineProperty("p", {set: Func("Test_set").Bind("p")})
+            A  x.p = "p()"
+            A  (x.p := 123) = "p := 123"
+            
             Test_get(arg1, this) {
                 return arg1 "(" this["_" arg1] ")"
             }
