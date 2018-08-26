@@ -423,6 +423,10 @@ class Map extends Object
             return ObjDelete(this.←map, Map_key(key))
         }
         
+        Clear() {
+            this.__new()
+        }
+        
         Clone() {
             ObjRawSet(cl := base.Clone(), "←map", ObjClone(this.←map))
             return cl

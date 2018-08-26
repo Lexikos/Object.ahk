@@ -737,9 +737,16 @@ class Tests
             m := new Map
             m.Item['x'] := 1
             m.Item['y'] := 2
-            A  m.Has('x') && m.Has('y')
+            A  m.Has('x') && m.Has('y') && m.Count = 2
             m.Delete('x')
-            A  m.Has('x') = false && m.Has('y')
+            A  m.Has('x') = false && m.Has('y') && m.Count = 1
+            
+            m := new Map
+            m.Item['x'] := 1
+            m.Item['y'] := 2
+            A  m.Has('x') && m.Has('y') && m.Count = 2
+            m.Clear()
+            A  m.Has('x') = false && m.Has('y') = false && m.Count = 0
         }
     }
     
