@@ -343,12 +343,17 @@ class Array extends Object
             get {
                 if !(index is 'integer')
                     throw Exception("Invalid index", -2, index)
-                return this[index + (index <= 0 ? ObjLength(this) + 1 : 0), p*]
+                v := ObjRawGet(this, index + (index <= 0 ? ObjLength(this) + 1 : 0))
+                return ObjLength(p) ? v.Item[p*] : v
             }
             set {
                 if !(index is 'integer')
                     throw Exception("Invalid index", -2, index)
-                return this[index + (index <= 0 ? ObjLength(this) + 1 : 0), p*] := value
+                (index <= 0) && (index += ObjLength(this) + 1)
+                if ObjLength(p)
+                    return ObjRawGet(this, index).Item[p*] := value
+                ObjRawSet(this, index, value)
+                return value
             }
         }
     }
