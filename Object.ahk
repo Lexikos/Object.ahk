@@ -225,8 +225,19 @@ class Object extends _Object_Base
                 ObjRawSet(c, "←method", ObjClone(tm))  ; Copy owned methods.
             return c
         }
-        _NewEnum() {
-            return new Object.Enumerator(this)
+        
+        Properties() {
+            e := ObjNewEnum(this.←)
+            Next(ByRef a, ByRef b:="") {
+                if !e.Next(a, b)
+                    return false
+                ; For now, exceptions are suppressed rather than locating
+                ; the property getter and determining if it requires an index.
+                if b is _Object_Property && IsByRef(b)
+                    try b := this[a]
+                return true
+            }
+            return Func("Next")
         }
         
         ; Meta-methods - called only if no member exists in any prototype.
@@ -245,23 +256,17 @@ class Object extends _Object_Base
         __call(name, args) {
             throw Exception("Unknown method", -2, name)
         }
-    }
-    
-    class Enumerator
-    {
-        __new(obj) {
-            this.obj := obj
-            this.e := ObjNewEnum(obj.←)
+        
+        ; Adapt old interface to new.
+        _NewEnum() {
+            try
+                return new Enumerator(this.__forin())
+            catch ex
+                throw Exception(ex.Message, -2)
         }
         
-        Next(ByRef a, ByRef b:="") {
-            if !this.e.Next(a, b)
-                return false
-            ; For now, exceptions are suppressed rather than locating
-            ; the property getter and determining if it requires an index.
-            if b is _Object_Property && IsByRef(b)
-                try b := this.obj[a]
-            return true
+        __forin() {
+            throw Exception("No default enumerator", -2)
         }
     }
 }
@@ -273,6 +278,25 @@ class Class extends Object
         new(p*) {
             return new this(p*)
         }
+    }
+}
+
+class Enumerator ; This is an old-style class due to the need for ByRef.
+{
+    __new(f) {
+        this.f := f
+    }
+    
+    Next(ByRef a, ByRef b:="") {
+        return %this.f%(a, IsByRef(b) ? b : "")
+    }
+    
+    _NewEnum() {
+        return this
+    }
+    
+    __forin() {
+        return this.f
     }
 }
 
@@ -317,10 +341,6 @@ class Array extends Object
             return ObjPop(this)
         }
         
-        _NewEnum() {
-            return new Array.Enumerator(this)
-        }
-        
         __getprop(index, args) {
             if index is 'integer' && index <= 0
                 return this[index + ObjLength(this) + 1, args*]
@@ -356,32 +376,14 @@ class Array extends Object
                 return value
             }
         }
-    }
-    
-    class Enumerator
-    {
-        __new(arr) {
-            this.arr := arr
-            this.n := 0
-        }
-        Next(ByRef a, ByRef b:="") {
-            return (this.Next := this.base["Next" 1+IsByRef(b)]).call(this, a, b)
-        }
-        Next1(ByRef a) {
-            a := (arr := this.arr)[n := ++this.n]
-            return n <= ObjLength(arr)
-        }
-        Next2(ByRef a, ByRef b) {
-            if (a := ++this.n) <= ObjLength(arr := this.arr) {
-                b := arr[a]
-                return true
+        
+        __forin() {
+            n := 0
+            Next(ByRef a) {
+                a := this[++n]
+                return n <= ObjLength(this)
             }
-            this.e := ObjNewEnum(this.arr.←)
-            this.Next := this.base.Next2e
-            return this.Next(a, b)
-        }
-        Next2e(ByRef a, ByRef b) {
-            return this.e.Next(a, b)
+            return Func("Next")
         }
     }
 }
@@ -432,22 +434,15 @@ class Map extends Object
             return cl
         }
         
-        _NewEnum() {
-            return new Map.Enumerator(this)
-        }
-    }
-    
-    class Enumerator
-    {
-        __new(map) {
-            this.e := ObjNewEnum(map.←map)
-        }
-        
-        Next(ByRef a, ByRef b) {
-            if !this.e.Next(a, b)
-                return false
-            a := Map_unkey(a)
-            return true
+        __forin() {
+            e := ObjNewEnum(this.←map)
+            Next(ByRef a, ByRef b) {
+                if !e.Next(a, b)
+                    return false
+                a := Map_unkey(a)
+                return true
+            }
+            return Func("Next")
         }
     }
 }

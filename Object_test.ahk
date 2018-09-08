@@ -196,29 +196,38 @@ class Tests
         
         Enumeration()
         {
+            EnumPropPairs(x) {
+                s := ''
+                e := x.Properties()
+                while %e%(k, v)
+                    s .= ' ' k ':' v
+                return s
+            }
+            
+            EnumPropKeys(x) {
+                s := ''
+                e := x.Properties()
+                while %e%(k)
+                    s .= ' ' k
+                return s
+            }
+            
             x := {one: 1, two: 2, three: 3}
-            s := ''
-            for k, v in x
-                s .= ' ' k ':' v
+            s := EnumPropPairs(x)
             A  s = ' one:1 three:3 two:2'
             
             x.DefineProperty('four', {get: () => 4})
-            s := ''
-            for k, v in x
-                s .= ' ' k ':' v
+            s := EnumPropPairs(x)
             A  s = ' four:4 one:1 three:3 two:2'
             
             x := {}
             called := false
             x.DefineProperty('five', {get: () => called := true})
-            s := ''
-            for k in x
-                s .= ' ' k
+            ; Properties are not called if enumerator receives only one parameter.
+            s := EnumPropKeys(x)
             A  s = ' five' && not called
-            s := ''
-            for k, v in x
-                s .= ' ' k
-            A  s = ' five' && called
+            s := EnumPropPairs(x)
+            A  s = ' five:1' && called
         }
     }
     
@@ -634,9 +643,9 @@ class Tests
             A  s = ' 1:10 2:40 3: 4:'
             
             s := ''
-            for k, v in x
+            for k, v in new Enumerator(x.Properties())
                 s .= ' ' k ':' v
-            A  s = ' 1:10 2:40 3: 4: prop:42'
+            A  s = ' prop:42'
         }
         
         VariadicCall()
