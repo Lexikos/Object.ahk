@@ -578,6 +578,13 @@ class Tests
     
     class Array
     {
+        Constructor()
+        {
+            x := new Array('A','B','C')
+            A  x.Length = 3
+            A  x[1] x[2] x[3] = 'ABC'
+        }
+        
         Indexing()
         {
             ; Explicit item indexing

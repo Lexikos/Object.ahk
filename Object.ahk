@@ -310,6 +310,10 @@ class Array extends Object
 {
     class _instance
     {
+        __new(values*) {
+            ObjLength(values) && ObjInsertAt(this, 1, values*)
+        }
+        
         Length {
             get {
                 return ObjLength(this)
