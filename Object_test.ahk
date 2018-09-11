@@ -1,5 +1,6 @@
 ﻿
 #Include Object.ahk
+#Include Object.Override.ahk
 #Include <Yunit\Yunit>
 
 Yunit.Use(SciTEStdout).Test(Tests)
