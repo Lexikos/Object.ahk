@@ -1,14 +1,6 @@
  
 Object_throw(extype, p*) {
-    while (stdex := Exception("", -A_Index)).What != -A_Index {
-        if !(stdex.File ~= "\\Object(?:\.\w+)?\.ahk")
-            break
-    }
-    ex := extype.new(p*)
-    ; The built-in error dialog requires that these be set raw.
-    ObjRawSet ex, "File", stdex.File
-    ObjRawSet ex, "Line", stdex.Line
-    throw ex
+    throw extype.new(p*)
 }
 
 class Exception extends Object
@@ -16,9 +8,14 @@ class Exception extends Object
     class _instance
     {
         __new(msg:="", extra:="") {
+            while (stdex := Exception("", -A_Index-1)).What != -A_Index-1
+                if !(stdex.File ~= "\\Object(?:\.\w+)?\.ahk")
+                    break
             ; The built-in error dialog requires that these be set raw.
             ObjRawSet this, "Message", '(' type(this) ') ' msg
             ObjRawSet this, "Extra", Object_String(extra)
+            ObjRawSet this, "File", stdex.File
+            ObjRawSet this, "Line", stdex.Line
         }
     }
 }
