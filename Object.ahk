@@ -252,6 +252,11 @@ class Object extends _Object_Base
             return Func("Next")
         }
         
+        ToString() {
+            return (t := ObjRawGet(this, "__Class")) ? "<" t ".prototype>"
+                : Format("<{1} at 0x{2:X}>", type(this), &this)
+        }
+        
         ; Meta-methods - called only if no member exists in any prototype.
         ; args is a standard variadic-args object, not an Array.
         __getprop(name, args:=0) {
@@ -291,6 +296,10 @@ class Class extends Object
         new(p*) {
             return new this(p*)
         }
+        
+        ToString() {
+            return Format("<class {1}>", this.__Class)
+        }
     }
 }
 
@@ -310,6 +319,10 @@ class Enumerator ; This is an old-style class due to the need for ByRef.
     
     __forin() {
         return this.f
+    }
+    
+    ToString() {
+        return Format("<{1} at 0x{2:X}>", type(this), &this)
     }
 }
 
