@@ -22,7 +22,7 @@ class PrimitiveValue extends Object
     class _instance
     {
         __getprop(name) {
-            throw Exception("Unknown property", -3, name)
+            Object_throw(PropertyError, "Unknown property", name)
         }
         
         __setprop(name, value) {
@@ -75,11 +75,11 @@ class PrimitiveValue extends Object
         }
         
         GetCapacity(p*) {
-            return isObject(this) ? base.GetCapacity(p*) : ""
+            return isObject(this) ? base.GetCapacity(p*) : Object_throw(PropertyError, "Unknown property", p[1])
         }
         
         GetAddress(p) {
-            return isObject(this) ? base.GetAddress(p) : _throw("Invalid value.", -2)
+            return isObject(this) ? base.GetAddress(p) : Object_throw(PropertyError, "Unknown property", p)
         }
         
         Clone() {
@@ -105,15 +105,15 @@ class String extends PrimitiveValue
     {
         __getprop(index) {
             if !(index is 'integer')
-                throw Exception("Unknown property", -3, index)
-            return (c := SubStr(this, index, 1)) != "" ? c : _throw("Invalid index", -3, index)
+                Object_throw(PropertyError, "Unknown property", index)
+            return (c := SubStr(this, index, 1)) != "" ? c : Object_throw(IndexError, "Invalid index", index)
         }
         
         Item[index, p*] {
             get {
                 if !(index is 'integer') || ObjLength(p)
-                    throw Exception("Invalid index", -3, index)
-                return (c := SubStr(this, index, 1)) != "" ? c : _throw("Invalid index", -3, index)
+                    Object_throw(TypeError, "Invalid index", index)
+                return (c := SubStr(this, index, 1)) != "" ? c : Object_throw(IndexError, "Invalid index", index)
             }
         }
     }

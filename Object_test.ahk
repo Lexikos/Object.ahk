@@ -796,7 +796,7 @@ class Tests
         MustThrow () => "".DeleteProperty('x')
         MustThrow () => "".DeleteMethod('y')
         
-        A  1.GetCapacity("foo") = ""
+        MustThrow () => 1.GetCapacity("foo")
         MustThrow () => 1.SetCapacity(10)
         MustThrow () => 1.GetAddress("foo")
         

@@ -8,7 +8,7 @@ class _Object_Base
     ; Called on instances:
     __init() {
         if ObjHasKey(this, "__Class")
-            throw Exception(A_ThisFunc " unexpectedly called on a class", -1)
+            Object_throw(TypeError, A_ThisFunc " unexpectedly called on a class", this)
         if ObjHasKey(cls := ObjGetBase(this), "__Class") && !ObjHasKey(cls, "←")
             MetaClass(cls)
     }
@@ -122,7 +122,7 @@ class _Object_Base
                 ; Treat properties with only a getter as read-only,
                 ; rather than having the first assignment disable it.
                 if isaccessor
-                    throw Exception("Property '" k "' is read-only.", -1, k)
+                    Object_throw(PropertyError, "Property is read-only.", k)
                 if f := meta.←method["__setprop"] {
                     if Func_CannotAcceptParams(f, 4) {
                         if ObjLength(p)
@@ -138,8 +138,8 @@ class _Object_Base
         if ObjLength(p)
             return prop.Item[p*] := value
         if meta != this {
-            if !isObject(this)
-                throw Exception("Primitive values cannot be assigned properties.", -2, this)
+            if !isObject(this) ; Normally handled via __setprop, but checked just in case.
+                _throw_Immutable(this)
             thisprops := ObjRawGet(this, "←")
         }
         ObjRawSet(thisprops, k, value)
@@ -154,7 +154,7 @@ class _Object_Base
         if f := meta.←method["__call"]
             return f.call(this, k, p)
         ; Unusual case: default prototype was removed or modified.
-        throw Exception("Unknown method", -2, k)
+        Object_throw(MethodError, "Unknown method", k)
     }
 
 class Object extends _Object_Base
@@ -173,7 +173,7 @@ class Object extends _Object_Base
                         ObjSetBase(tm, "")
                 } else {
                     if !(value_← := ObjRawGet(value, "←"))
-                        throw Exception("Incompatible base object", -1, type(value))
+                        Object_throw(TypeError, "Incompatible base object", value)
                     ObjSetBase(this, value)
                     ObjSetBase(this.←, value_←)
                     if (tm := ObjRawGet(this, "←method"))
@@ -201,13 +201,13 @@ class Object extends _Object_Base
         
         DefineProperty(name, prop) {
             if !isObject(prop) || !(prop.get || prop.set)
-                throw Exception("Invalid parameter #2", -3, prop)
+                Object_throw(TypeError, "Invalid parameter #2", prop)
             Object_DefProp(this, name, prop)
         }
         
         DefineMethod(name, func) {
             if !isObject(func)
-                throw Exception("Invalid parameter #2", -3, func)
+                Object_throw(TypeError, "Invalid parameter #2", func)
             Object_DefMeth(this, name, func)
         }
         
@@ -267,24 +267,17 @@ class Object extends _Object_Base
         __setprop(name, value, args:=0) {
             if args && ObjLength(args)
                 return "".Item[args*]
-                ; throw Exception("No object to invoke.", -3, name)
             ObjRawSet(this.←, name, value)
             return value
         }
         __call(name, args) {
-            throw Exception("Unknown method", -3, name)
+            Object_throw(MethodError, "Unknown method", name)
         }
         
         ; Adapt old interface to new.
         _NewEnum() {
-            try
-                return new Enumerator(this.__forin())
-            catch ex
-                throw Exception(ex.Message, -2)
-        }
-        
-        __forin() {
-            throw Exception("No default enumerator", -2)
+            ; If __forin has not been implemented, this will throw MethodError.
+            return new Enumerator(this.__forin())
         }
     }
 }
@@ -340,7 +333,7 @@ class Array extends Object
             }
             set {
                 if !(value is 'integer') || value < 0
-                    throw Exception("Invalid value", -1, value)
+                    Object_throw(value is 'integer' ? ValueError : TypeError, "Invalid value", value)
                 if value < (n := ObjLength(this))
                     ObjDelete(this, value + 1, n)
                 if !ObjHasKey(this, value)
@@ -386,13 +379,13 @@ class Array extends Object
         Item[index, p*] {
             get {
                 if !(index is 'integer')
-                    throw Exception("Invalid index", -3, index)
+                    Object_throw(TypeError, "Invalid index", index)
                 v := ObjRawGet(this, index + (index <= 0 ? ObjLength(this) + 1 : 0))
                 return ObjLength(p) ? v.Item[p*] : v
             }
             set {
                 if !(index is 'integer')
-                    throw Exception("Invalid index", -3, index)
+                    Object_throw(TypeError, "Invalid index", index)
                 (index <= 0) && (index += ObjLength(this) + 1)
                 if ObjLength(p)
                     return ObjRawGet(this, index).Item[p*] := value
@@ -542,12 +535,11 @@ Func_CannotAcceptParams(f, n) {
     return mp is 'integer' && mp < n && !iv
 }
 
-_throw_Immutable(this) {
-    throw Exception("This object of type '" type(this) "' is immutable.", -3, this)
-}
-
-_throw(m, n := -1, e := "") {
-    throw Exception(m, n is 'integer' && n < 0 ? n-1 : n, e)
+Object_String(value) {
+    try
+        return String(value)
+    catch  ; Should only be possible for external object types.
+        return Format("<{1} at 0x{2:X}>", type(value), &value)
 }
 
 ; =====================================================================
@@ -557,9 +549,9 @@ MetaClass(cls) {
     ; Determine base class.
     basecls := ObjGetBase(cls)  ; cls.base won't work for subclasses if MetaClass(superclass) has been called.
     if !ObjHasKey(cls, "__Class") || !basecls || !ObjHasKey(basecls, "__Class")
-        throw Exception("Invalid parameter #1", -1, cls)
+        Object_throw(TypeError, "Invalid parameter #1", cls)
     if ObjHasKey(cls, "←instance")  ; Flag this as an error since it probably indicates a design problem.
-        throw Exception("MetaClass has already been called for this class.", -1, ObjRawGet(cls, "__Class"))
+        Object_throw(Exception, "MetaClass has already been called for this class.", cls)
     if basecls = _Object_Base
         basecls := ""
     else if !ObjHasKey(basecls, "←") {
@@ -577,10 +569,10 @@ MetaClass(cls) {
         if type(v) == "Class"  ; Nested class (static variables should be in _static).
             ObjRawSet(static_data, k, v)
         else if k != "__Class"
-            throw Exception(Format("Improper static data {1}:{2} in class {3}."
-                , IsObject(k) ? Type(k) : "'" k "'"
-                , IsObject(v) ? Type(v) : "'" v "'"
-                , cls.__class), -1)
+            Object_throw(Exception, Format("Improper static data {1}:{2} in class {3}."
+                , IsObject(k) ? Object_String(k) : "'" k "'"
+                , IsObject(v) ? Object_String(v) : "'" v "'"
+                , cls.__class))
     }
     e := ObjNewEnum(static_data)
     while e.Next(k)
@@ -663,3 +655,5 @@ MetaClass(cls) {
     if f := cls.←method["__initclass"]
         f.call(cls)
 }
+
+#Include Object.Errors.ahk
