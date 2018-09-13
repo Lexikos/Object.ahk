@@ -514,6 +514,13 @@ class Tests
             A  x.x = '__init1' && x.y = '__new1'
             A  x.a = '__init2' && x.b = '__new2'
         }
+        
+        TypeName()
+        {
+            A  type(new Object) = "Object"
+            A  type(new Array) = "Array"
+            A  type(Object) = "Class"
+        }
     }
     
     class Operators

@@ -16,7 +16,7 @@ class _Object_Base
         b := ObjGetBase(this)
         ; If b is a class, make an instance; i.e. base on b.prototype.
         ; If b is an instance, make a "live clone"; i.e. base on b.
-        if ObjHasKey(b, "__Class") {
+        if ObjHasKey(b, "←instance") {
             ; For `new SomeClass`, derive from `SomeClass.prototype`.
             ObjSetBase(this, b := b.prototype)
         }
@@ -583,6 +583,10 @@ MetaClass(cls) {
     ObjRawSet(static_data, "prototype", pt)
     ; Convert class.
     ObjRawSet(cls, "←", static_data)
+    
+    ; Set __class to assist debugging and provide a meaningful string for
+    ; type(), with the side-effect that prototypes are considered classes:
+    ObjRawSet(pt, "__class", cls.__class)
     
     ; Store the _instance class that subclasses will link to their own.
     base_instance := basecls && basecls.←instance
