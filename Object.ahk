@@ -45,14 +45,25 @@ class _Object_Base
     }
     ; Called on classes and instances:
     __get(k, p*) {
-        if !(props := ObjRawGet(this, "←")) {
-            MetaClass(this)  ; Initialize class on first access.
-            props := ObjRawGet(this, "←")
-        }
         if SubStr(k, 1, 1) = "←" {  ; An internal property.
             ; ObjLength(p) isn't checked because we want this.←method[x]
             ; to assume an empty method array if no methods are defined.
             return ""
+        }
+        return _Object_mget(this, this, k, p)
+    }
+    __set(k, p*) {
+        return _Object_mset(this, this, k, p)
+    }
+    __call(k, p*) {
+        return _Object_mcall(this, this, k, p)
+    }
+}
+
+    _Object_mget(meta, this, k, p) {
+        if !(props := ObjRawGet(meta, "←")) {
+            MetaClass(meta)  ; Initialize class on first access.
+            props := ObjRawGet(meta, "←")
         }
         loop {
             if (prop := ObjRawGet(props, k)) is _Object_Property {
@@ -70,7 +81,7 @@ class _Object_Base
                 ; Iterate to find inherited value, if any.
             }
             if !(props := ObjGetBase(props)) {
-                if f := this.←method["__getprop"] {
+                if f := meta.←method["__getprop"] {
                     if Func_CannotAcceptParams(f, 3) {
                         prop := f.call(this, k)
                         break  ; Apply [p*] below.
@@ -83,10 +94,11 @@ class _Object_Base
         ; Return property value or apply remaining parameters.
         return ObjLength(p) ? prop.Item[p*] : prop
     }
-    __set(k, p*) {
-        if !(thisprops := props := ObjRawGet(this, "←")) {
-            MetaClass(this)  ; Initialize class on first access.
-            thisprops := props := ObjRawGet(this, "←")
+
+    _Object_mset(meta, this, k, p) {
+        if !(thisprops := props := ObjRawGet(meta, "←")) {
+            MetaClass(meta)  ; Initialize class on first access.
+            thisprops := props := ObjRawGet(meta, "←")
         }
         value := p.Pop(), isaccessor := false
         loop {
@@ -111,7 +123,7 @@ class _Object_Base
                 ; rather than having the first assignment disable it.
                 if isaccessor
                     throw Exception("Property '" k "' is read-only.", -1, k)
-                if f := this.←method["__setprop"] {
+                if f := meta.←method["__setprop"] {
                     if Func_CannotAcceptParams(f, 4) {
                         if ObjLength(p)
                             return this[k].Item[p*] := value  ; Apply [p*] to property value.
@@ -125,20 +137,25 @@ class _Object_Base
         ; Store property value or apply remaining parameters.
         if ObjLength(p)
             return prop.Item[p*] := value
+        if meta != this {
+            if !isObject(this)
+                throw Exception("Primitive values cannot be assigned properties.", -2, this)
+            thisprops := ObjRawGet(this, "←")
+        }
         ObjRawSet(thisprops, k, value)
         return value
     }
-    __call(k, p*) {
-        if !ObjHasKey(this, "←")
-            MetaClass(this)  ; Initialize class on first access.
-        if f := this.←method[k]
+
+    _Object_mcall(meta, this, k, p) {
+        if !ObjHasKey(meta, "←")
+            MetaClass(meta)  ; Initialize class on first access.
+        if f := meta.←method[k]
             return f.call(this, p*)
-        if f := this.←method["__call"]
+        if f := meta.←method["__call"]
             return f.call(this, k, p)
         ; Unusual case: default prototype was removed or modified.
-        throw Exception("Unknown method", -1, k)
+        throw Exception("Unknown method", -2, k)
     }
-}
 
 class Object extends _Object_Base
 {
@@ -167,12 +184,7 @@ class Object extends _Object_Base
         }
         
         HasProperty(name) {
-            props := this.←
-            Loop
-                if ObjHasKey(props, name)
-                    return true
-            until !(props := ObjGetBase(props))
-            return false
+            return Object_HasProp(this, name)
         }
         
         HasOwnProperty(name) {
@@ -180,22 +192,22 @@ class Object extends _Object_Base
         }
         
         HasMethod(name) {
-            return isObject(this.←method[name])
+            return Object_HasMeth(this, name)
         }
         
         GetMethod(name) {
-            return this.←method[name]
+            return Object_GetMeth(this, name)
         }
         
         DefineProperty(name, prop) {
             if !isObject(prop) || !(prop.get || prop.set)
-                throw Exception("Invalid parameter #2", -2, prop)
+                throw Exception("Invalid parameter #2", -3, prop)
             Object_DefProp(this, name, prop)
         }
         
         DefineMethod(name, func) {
             if !isObject(func)
-                throw Exception("Invalid parameter #2", -2, func)
+                throw Exception("Invalid parameter #2", -3, func)
             Object_DefMeth(this, name, func)
         }
         
@@ -244,17 +256,18 @@ class Object extends _Object_Base
         ; args is a standard variadic-args object, not an Array.
         __getprop(name, args:=0) {
             if args && ObjLength(args)
-                throw Exception("No object to invoke.", -2, name)
+                return "".Item[args*]
             return ""
         }
         __setprop(name, value, args:=0) {
             if args && ObjLength(args)
-                throw Exception("No object to invoke.", -2, name)
+                return "".Item[args*]
+                ; throw Exception("No object to invoke.", -3, name)
             ObjRawSet(this.←, name, value)
             return value
         }
         __call(name, args) {
-            throw Exception("Unknown method", -2, name)
+            throw Exception("Unknown method", -3, name)
         }
         
         ; Adapt old interface to new.
@@ -298,12 +311,6 @@ class Enumerator ; This is an old-style class due to the need for ByRef.
     __forin() {
         return this.f
     }
-}
-
-Value__call(value, n, p*) {
-    static _ := ("".base.__call := Func("Value__call"), 0)
-    if n = "is"
-        return value is p[1]
 }
 
 class Array extends Object
@@ -366,13 +373,13 @@ class Array extends Object
         Item[index, p*] {
             get {
                 if !(index is 'integer')
-                    throw Exception("Invalid index", -2, index)
+                    throw Exception("Invalid index", -3, index)
                 v := ObjRawGet(this, index + (index <= 0 ? ObjLength(this) + 1 : 0))
                 return ObjLength(p) ? v.Item[p*] : v
             }
             set {
                 if !(index is 'integer')
-                    throw Exception("Invalid index", -2, index)
+                    throw Exception("Invalid index", -3, index)
                 (index <= 0) && (index += ObjLength(this) + 1)
                 if ObjLength(p)
                     return ObjRawGet(this, index).Item[p*] := value
@@ -490,6 +497,23 @@ Object_DefMeth(this, name, func) {
     ObjRawSet(Object_own_←method(this), name, func)
 }
 
+Object_HasProp(this, name) {
+    props := isObject(this) ? this.← : this.base.←
+    Loop
+        if ObjHasKey(props, name)
+            return true
+    until !(props := ObjGetBase(props))
+    return false
+}
+
+Object_HasMeth(this, name) {
+    return isObject(this.←method[name])
+}
+
+Object_GetMeth(this, name) {
+    return this.←method[name]
+}
+
 Object_v(p*) {
     return p
 }
@@ -505,6 +529,14 @@ Func_CannotAcceptParams(f, n) {
     return mp is 'integer' && mp < n && !iv
 }
 
+_throw_Immutable(this) {
+    throw Exception("This object of type '" type(this) "' is immutable.", -3, this)
+}
+
+_throw(m, n := -1, e := "") {
+    throw Exception(m, n is 'integer' && n < 0 ? n-1 : n, e)
+}
+
 ; =====================================================================
 ; MetaClass(cls): Initializes a class object to enable new semantics.
 ; =====================================================================
@@ -517,8 +549,11 @@ MetaClass(cls) {
         throw Exception("MetaClass has already been called for this class.", -1, ObjRawGet(cls, "__Class"))
     if basecls = _Object_Base
         basecls := ""
-    else if !ObjHasKey(basecls, "←")
+    else if !ObjHasKey(basecls, "←") {
         MetaClass(basecls)  ; Initialize base class first.
+        if ObjHasKey(cls, "←instance")
+            return ; Handled by recursion, such as for Class/Object.
+    }
     ; Retrieve and remove internal properties.
     _instance := ObjDelete(cls, "_instance")
     _static := ObjDelete(cls, "_static")
@@ -532,7 +567,7 @@ MetaClass(cls) {
             throw Exception(Format("Improper static data {1}:{2} in class {3}."
                 , IsObject(k) ? Type(k) : "'" k "'"
                 , IsObject(v) ? Type(v) : "'" v "'"
-                , cls.__class), -2)
+                , cls.__class), -1)
     }
     e := ObjNewEnum(static_data)
     while e.Next(k)

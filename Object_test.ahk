@@ -1,6 +1,7 @@
 ﻿
 #Include Object.ahk
 #Include Object.Override.ahk
+#Include Object.Values.ahk
 #Include <Yunit\Yunit>
 
 Yunit.Use(SciTEStdout).Test(Tests)
@@ -333,7 +334,7 @@ class Tests
                 get: (this) => y,
                 set: (this, value) => y := value})
             A  (x.p0) = ''
-            MustThrow(() => x.p0[1])
+            MustThrow(() => x.p0['key'])
             A  (x.p0 := []) is Array.prototype
             A  (x.p0) is Array.prototype
             A  (x.p0[1] := 'x') = 'x'
@@ -364,7 +365,7 @@ class Tests
             x.DefineMethod('__setprop'
                 , (this, name, value) => y['real' name] := value)
             A  (x.p0) = ''
-            MustThrow(() => x.p0[1])
+            MustThrow(() => x.p0['key'])
             A  (x.p0 := []) is Array.prototype
             A  (x.p0) is Array.prototype
             A  (x.p0[1] := 'x') = 'x'
@@ -374,12 +375,12 @@ class Tests
             
             ; Test error handling.
             b := {}
-            MustThrow(() => (b.no)[1]) ; Baseline (separate indexing)
-            MustThrow(() =>  b.no [1]) ; No __getprop
-            MustThrow(() =>  x.no [1]) ; __getprop without args
-            MustThrow(() => (b.no)[1] := 2)
-            MustThrow(() =>  b.no [1] := 2)
-            MustThrow(() =>  x.no [1] := 2)
+            MustThrow(() => (b.no)['key']) ; Baseline (separate indexing)
+            MustThrow(() =>  b.no ['key']) ; No __getprop
+            MustThrow(() =>  x.no ['key']) ; __getprop without args
+            MustThrow(() => (b.no)['key'] := 1)
+            MustThrow(() =>  b.no ['key'] := 1)
+            MustThrow(() =>  x.no ['key'] := 1)
         }
         
         _Delete()
@@ -765,6 +766,37 @@ class Tests
             m.Clear()
             A  m.Has('x') = false && m.Has('y') = false && m.Count = 0
         }
+    }
+    
+    Primitives()
+    {
+        A  1.base = Integer.prototype
+        A  2.0.base = Float.prototype
+        A  "".base = String.prototype
+        
+        A  "".length = 0 && "foo".length = 3
+        A  "abc"[2] = "b" && "abc"[-1] = "c"
+        A  "def".Item[3] = "f" && "def".Item[-3] = "d"
+        MustThrow () => ""[1]
+        
+        A  1.HasMethod('HasProperty')
+        A  1.HasProperty('Length') = false && "".HasProperty('Length')
+        
+        MustThrow () => 1.base := {}
+        MustThrow () => "".base := {}
+        MustThrow () => 1.DefineProperty('answer', {get: () => 42})
+        MustThrow () => 1.DefineMethod('getanswer', () => 42)
+        MustThrow () => "".DeleteProperty('x')
+        MustThrow () => "".DeleteMethod('y')
+        
+        A  1.GetCapacity("foo") = ""
+        MustThrow () => 1.SetCapacity(10)
+        MustThrow () => 1.GetAddress("foo")
+        
+        A  1.Clone() = 1 && 2.3.Clone() = 2.3 && "foo".Clone() = "foo"
+        A  isObject(1.base.Clone())
+        
+        A  not 1.Properties().call(k,v)
     }
     
     class Limitations
