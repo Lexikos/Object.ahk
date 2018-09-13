@@ -542,6 +542,12 @@ Object_String(value) {
         return Format("<{1} at 0x{2:X}>", type(value), &value)
 }
 
+ObjFromPtr(ptr) {
+    (ptr is 'integer') || Object_throw(TypeError, "Invalid parameter #1", ptr)
+    (ptr < 0 || ptr > 0xFFFF) || Object_throw(ValueError, "Invalid parameter #1", ptr)
+    return ComObject(0x4009, &ptr)[]
+}
+
 ; =====================================================================
 ; MetaClass(cls): Initializes a class object to enable new semantics.
 ; =====================================================================

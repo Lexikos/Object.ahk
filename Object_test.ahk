@@ -846,7 +846,7 @@ class Tests
         ObjectFromPtr()
         {
             x := Object_v()
-            A  Object(&x) = x
+            A  ObjFromPtr(&x) = x
         }
     }
 }

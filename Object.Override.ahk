@@ -8,11 +8,8 @@ Array(a*) {
 }
 
 Object(p*) {
-    if ObjLength(p) & 1 {
-        if p.Length() = 1
-            return ComObject(0x4009, &(n := p[1]))[]
+    if ObjLength(p) & 1
         Object_throw(ValueError, "Invalid parameter count", ObjLength(p))
-    }
     ; This is just the essential parts of what `new Object()` does,
     ; skipping stuff that isn't needed, under the assumption that no
     ; one will add __init or __new methods to class Object.
