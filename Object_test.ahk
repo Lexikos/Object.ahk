@@ -2,6 +2,7 @@
 #Include Object.ahk
 #Include Object.Override.ahk
 #Include Object.Values.ahk
+#Include ErrorDialog.ahk
 #Include <Yunit\Yunit>
 
 Yunit.Use(SciTEStdout).Test(Tests)
