@@ -2,20 +2,24 @@
 OnError("ErrorDialog")
 
 ErrorDialog(exc) {
+    local
     ListLines false  ; No need to save A_ListLines: the thread will exit.
-    trace := "", excess := 0
-    next := Exception("", n := -1)
-    while (stk := next).What != n {
-        next := Exception("", --n)
-        ctx := (next.What < 0 ? "(main)" : next.What)
-        SplitPath stk.File, filename
-        ; if (filename ~= "^Object(?:\.\w+)?\.ahk$")
-            ; continue
-        if A_Index > 5
-            ++excess
-        else
-            trace .= "`t" filename " (" stk.Line ") : " ctx "`n"
-            ; trace .= "`tin " ctx ", line " stk.Line ", file '" filename "'`n"
+    if (trace := exc.StackTrace) != "" {
+        trace := RegExReplace(trace, "m)^(?:.*\\)?", "`t")  ; Show filename only, and indent.
+        RegExMatch(trace, "((?:.*\R){0,5})((?s).*)", m)
+        trace := m[1], StrReplace(m[2], "`n", "`n", excess)
+    } else {
+        trace := "", excess := 0
+        next := Exception("", n := -1)
+        while (stk := next).What != n {
+            next := Exception("", --n)
+            ctx := (next.What < 0 ? "(main)" : next.What)
+            SplitPath stk.File, filename
+            if A_Index > 5
+                ++excess
+            else
+                trace .= "`t" filename " (" stk.Line ") : " ctx "`n"
+        }
     }
     if excess
         trace .= "`t... " excess " more`n"

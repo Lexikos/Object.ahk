@@ -8,15 +8,33 @@ class Exception extends Object
     class _instance
     {
         __new(msg:="", extra:="", skip_frames:=0) {
-            while (stdex := Exception("", -A_Index-1)).What != -A_Index-1
-                if !(stdex.File ~= "\\Object(?:\.\w+)?\.ahk")
+            while (stk := Exception("", -A_Index-1)).What != -A_Index-1
+                if !(stk.File ~= "\\Object(?:\.\w+)?\.ahk")
                     if skip_frames-- <= 0
                         break
             ; The built-in error dialog requires that these be set raw.
             ObjRawSet this, "Message", '(' type(this) ') ' msg
             ObjRawSet this, "Extra", Object_String(extra)
-            ObjRawSet this, "File", stdex.File
-            ObjRawSet this, "Line", stdex.Line
+            ObjRawSet this, "File", stk.File
+            ObjRawSet this, "Line", stk.Line
+            
+            this.StackTrace := Exception.StackTrace()
+        }
+    }
+    
+    class _static
+    {
+        StackTrace() {
+            trace := ""
+            next := Exception("", n := -1)
+            while (stk := next).What != n {
+                next := Exception("", --n)
+                if (stk.File ~= "\\Object(?:\.\w+)?\.ahk")
+                    continue
+                ctx := (next.What < 0 ? "(main)" : next.What)
+                trace .= stk.File " (" stk.Line ") : " ctx "`n"
+            }
+            return trace
         }
     }
 }
