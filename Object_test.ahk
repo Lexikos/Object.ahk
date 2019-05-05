@@ -27,7 +27,7 @@ class SciTEStdOut
             Status := "FAIL"
         } else {
             Details := ""
-            Status := "PASS"
+            Status := Result = 0 ? "PASS" : "FAIL (value thrown)"
         }
         FileAppend Status ": " Category "." Test " " Details "`n", "*"
     }
