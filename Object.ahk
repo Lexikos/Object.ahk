@@ -58,9 +58,21 @@ class _Object_Base
     __call(k, p*) {
         return _Object_mcall(this, this, k, p)
     }
+    __Item[p*] {  ; v2.0-a101
+        get {
+            return _Object_mget(this, this, "__Item", p, false)
+        }
+        set {
+            p.Push(value)
+            return _Object_mset(this, this, "__Item", p, false)
+        }
+    }
 }
 
-    _Object_mget(meta, this, k, p) {
+class _Object_Length0 {   
+}
+
+    _Object_mget(meta, this, k, p, mf:=true) {
         if !(props := ObjRawGet(meta, "←")) {
             MetaClass(meta)  ; Initialize class on first access.
             props := ObjRawGet(meta, "←")
@@ -81,21 +93,23 @@ class _Object_Base
                 ; Iterate to find inherited value, if any.
             }
             if !(props := ObjGetBase(props)) {
-                if f := meta.←method["__getprop"] {
+                if mf && (f := meta.←method["__getprop"]) {
                     if Func_CannotAcceptParams(f, 3) {
                         prop := f.call(this, k)
                         break  ; Apply [p*] below.
                     }
                     return f.call(this, k, p)
                 }
+                if k = "__Item"
+                    Object_throw(TypeError, "Indexing not supported", this)
                 break  ; Unusual: default prototype was removed or modified.
             }
         }
         ; Return property value or apply remaining parameters.
-        return ObjLength(p) ? prop.Item[p*] : prop
+        return ObjLength(p) ? prop[p*] : prop
     }
 
-    _Object_mset(meta, this, k, p) {
+    _Object_mset(meta, this, k, p, mf:=true) {
         if !(thisprops := props := ObjRawGet(meta, "←")) {
             MetaClass(meta)  ; Initialize class on first access.
             thisprops := props := ObjRawGet(meta, "←")
@@ -106,7 +120,8 @@ class _Object_Base
                 if f := prop[2] {
                     if Func_CannotAcceptParams(f, 3) {
                         if ObjLength(p)
-                            return this[k].Item[p*] := value  ; Apply [p*] to property value.
+                            return _Object_mget(this, this, k
+                                , _Object_Length0)[p*] := value  ; Apply [p*] to property value.
                         return f.call(this, value)
                     }
                     return f.call(this, value, p*)
@@ -123,20 +138,23 @@ class _Object_Base
                 ; rather than having the first assignment disable it.
                 if isaccessor
                     Object_throw(PropertyError, "Property is read-only.", k)
-                if f := meta.←method["__setprop"] {
+                if mf && (f := meta.←method["__setprop"]) {
                     if Func_CannotAcceptParams(f, 4) {
                         if ObjLength(p)
-                            return this[k].Item[p*] := value  ; Apply [p*] to property value.
+                            return _Object_mget(this, this, k
+                                , _Object_Length0)[p*] := value  ; Apply [p*] to property value.
                         return f.call(this, k, value)
                     }
                     return f.call(this, k, value, p)
                 }
+                if k = "__Item"
+                    Object_throw(TypeError, "Indexing not supported", this)
                 break  ; Unusual: default prototype was removed or modified.
             }
         }
         ; Store property value or apply remaining parameters.
         if ObjLength(p)
-            return prop.Item[p*] := value
+            return prop[p*] := value
         if meta != this {
             if !isObject(this) ; Normally handled via __setprop, but checked just in case.
                 _throw_Immutable(this)
@@ -246,7 +264,7 @@ class Object extends _Object_Base
                 ; For now, exceptions are suppressed rather than locating
                 ; the property getter and determining if it requires an index.
                 if b is _Object_Property && IsByRef(b)
-                    try b := this[a]
+                    try b := _Object_mget(this, this, a, _Object_Length0)
                 return true
             }
             return Func("Next")
@@ -261,12 +279,12 @@ class Object extends _Object_Base
         ; args is a standard variadic-args object, not an Array.
         __getprop(name, args:=0) {
             if args && ObjLength(args)
-                return "".Item[args*]
+                return ""[args*]
             return ""
         }
         __setprop(name, value, args:=0) {
             if args && ObjLength(args)
-                return "".Item[args*]
+                return ""[args*]
             ObjRawSet(this.←, name, value)
             return value
         }
@@ -358,16 +376,8 @@ class Array extends Object
             return ObjPop(this)
         }
         
-        __getprop(index, args) {
-            if index is 'integer' && index <= 0
-                return this[index + ObjLength(this) + 1, args*]
-            return base.__getprop(index, args)
-        }
-        
         __setprop(index, value, args) {
-            if index is 'integer'  {
-                if index <= 0
-                    return this[index + ObjLength(this) + 1, args*] := value
+            if index is 'integer' {
                 if !ObjLength(args) {
                     ObjRawSet(this, index, value)
                     return value
@@ -376,19 +386,19 @@ class Array extends Object
             return base.__setprop(index, value, args)
         }
         
-        Item[index, p*] {
+        __Item[index, p*] {
             get {
                 if !(index is 'integer')
                     Object_throw(TypeError, "Invalid index", index)
                 v := ObjRawGet(this, index + (index <= 0 ? ObjLength(this) + 1 : 0))
-                return ObjLength(p) ? v.Item[p*] : v
+                return ObjLength(p) ? v[p*] : v
             }
             set {
                 if !(index is 'integer')
                     Object_throw(TypeError, "Invalid index", index)
                 (index <= 0) && (index += ObjLength(this) + 1)
                 if ObjLength(p)
-                    return ObjRawGet(this, index).Item[p*] := value
+                    return ObjRawGet(this, index)[p*] := value
                 ObjRawSet(this, index, value)
                 return value
             }
@@ -397,7 +407,7 @@ class Array extends Object
         __forin() {
             n := 0
             Next(ByRef a) {
-                a := this[++n]
+                a := this.__Item[++n]
                 return n <= ObjLength(this)
             }
             return Func("Next")
@@ -417,15 +427,15 @@ class Map extends Object
             return ObjHasKey(this.←map, Map_key(key))
         }
         
-        Item[key, p*] {
+        __Item[key, p*] {
             get {
                 v := ObjRawGet(this.←map, Map_key(key))
-                return ObjLength(p) ? v.Item[p*] : v
+                return ObjLength(p) ? v[p*] : v
             }
             set {
                 if ObjLength(p) {
                     v := ObjRawGet(this.←map, Map_key(key))
-                    return v.Item[p*] := value
+                    return v[p*] := value
                 }
                 ObjRawSet(this.←map, Map_key(key), value)
                 return value

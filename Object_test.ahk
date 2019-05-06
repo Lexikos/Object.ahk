@@ -153,10 +153,10 @@ class Tests
             A  (x.p := 123) = "p := 123"
             
             Test_get(arg1, this) {
-                return arg1 "(" this["_" arg1] ")"
+                return arg1 "(" ObjRawGet(this, "_" arg1) ")"
             }
             Test_set(arg1, this, value) {
-                this["_" arg1] := value
+                ObjRawSet(this, "_" arg1, value)
                 return arg1 " := " value
             }
         }
@@ -284,15 +284,15 @@ class Tests
         Meta()
         {
             x := new Object
-            y := new Object
+            y := new Map
             x.DefineMethod('__getprop', (this, name) => y[name])
             x.DefineMethod('__setprop', (this, name, value) => y[name] := value)
             x.DefineMethod('__call', (this, name, args) => name '(' ObjLength(args) ')')
-            y.one := 1
+            y["one"] := 1
             A  x.one = 1
             x.foo := 'bar'
             A  x.foo = 'bar'
-            A  y.foo = 'bar'
+            A  y["foo"] = 'bar'
             A  x.hello() = 'hello(0)'
             
             ; Unlike v1, inherited property takes precedence.
@@ -360,7 +360,7 @@ class Tests
             
             ; Test automatic application of [index] to the result of a
             ; property when the meta-method does not accept index args.
-            y := {}
+            y := new Map
             x.DefineMethod('__getprop'
                 , (this, name) => y['real' name])
             x.DefineMethod('__setprop'
@@ -371,8 +371,8 @@ class Tests
             A  (x.p0) is Array.prototype
             A  (x.p0[1] := 'x') = 'x'
             A  (x.p0[1]) = 'x'
-            A  (y.realp0) is Array.prototype
-            A  (y.realp0)[1] = 'x' && y.realp0.Length = 1 && x.p0 = y.realp0
+            A  (y['realp0']) is Array.prototype
+            A  (y['realp0'])[1] = 'x' && y['realp0'].Length = 1 && x.p0 = y['realp0']
             
             ; Test error handling.
             b := {}
@@ -596,21 +596,6 @@ class Tests
         
         Indexing()
         {
-            ; Explicit item indexing
-            x := ['A','B','C']
-            A  x.Item[1] = 'A' && x.Item[2] = 'B' && x.Item[3] = 'C'
-            A  x.Item[-1] = 'C' && x.Item[-2] = 'B' && x.Item[-3] = 'A'
-            A  x.Item[-4] = '' && x.Item[0] = ''
-            A  (x.Item[0] := 'D') = 'D'
-            A  x.Item[-1] = 'D' && x.Item[4] = 'D' && x.length = 4
-            A  (x.Item[-2] := 'c') == 'c' && x.Item[3] == 'c'
-            
-            x.Item[1] := []
-            x.Item[1,1] := 'X'
-            x.Item[1,2] := 'Y'
-            A  x.Item[1,1] x.Item[1,-1] == 'XY'
-            
-            ; Redirected properties
             x := ['A','B','C']
             A  x[1] = 'A' && x[2] = 'B' && x[3] = 'C'
             A  x[-1] = 'C' && x[-2] = 'B' && x[-3] = 'A'
@@ -689,14 +674,14 @@ class Tests
         Basics()
         {
             m := new Map
-            A  (m.Item['abc'] := 11) = 11
-            A  m.Item['abc'] = 11
+            A  (m['abc'] := 11) = 11
+            A  m['abc'] = 11
             A  m.Count = 1
-            A  (m.Item['ABC'] := 33) = 33
-            A  m.Item['ABC'] = 33
-            A  m.Item['abc'] = 11
+            A  (m['ABC'] := 33) = 33
+            A  m['ABC'] = 33
+            A  m['abc'] = 11
             A  m.Count = 2
-            m.Item['xyz'] := 'str'
+            m['xyz'] := 'str'
             A  m.Count = 3
             A  m.Has('abc') && m.Has('ABC') && m.Has('Abc') = false
             
@@ -708,27 +693,27 @@ class Tests
             A  s = ' ABC:33 abc:11 xyz:str'
             
             m2 := m.Clone()
-            A  m != m2 && m2.Item['abc'] = 11 && m2.Item['ABC'] = 33
-                && m2.Item['xyz'] = 'str' && m2.Count = 3
+            A  m != m2 && m2['abc'] = 11 && m2['ABC'] = 33
+                && m2['xyz'] = 'str' && m2.Count = 3
         }
         
         SubItem()
         {
             m := new Map
-            m.Item['sub'] := new Map
-            m.Item['sub','item1'] := -1
-            m.Item['sub','item2'] := -2
-            A  m.Item['sub','item1'] = -1 && m.Item['sub','item2'] := -2
-            A  m.Item['sub'].Count = 2
+            m['sub'] := new Map
+            m['sub','item1'] := -1
+            m['sub','item2'] := -2
+            A  m['sub','item1'] = -1 && m['sub','item2'] := -2
+            A  m['sub'].Count = 2
         }
         
         Types()
         {
             m := new Map
-            m.Item['s'] := 'str'
-            m.Item[1] := 'int'
-            m.Item[Map] := 'obj'
-            A  m.Item['s'] = 'str' && m.Item[1] = 'int' && m.Item[Map] = 'obj'
+            m['s'] := 'str'
+            m[1] := 'int'
+            m[Map] := 'obj'
+            A  m['s'] = 'str' && m[1] = 'int' && m[Map] = 'obj'
             
             s := ''
             for k, v in m
@@ -736,12 +721,12 @@ class Tests
             A  s = ' Integer:1:int Class:' (&Map) ':obj String:s:str'
             
             m := new Map
-            m.Item['1'] := 'is'
-            m.Item[1] := 'i'
-            A  m.Item['1'] = 'is' && m.Item[1] = 'i'
-            m.Item[1.0] := 'f'
-            m.Item['1.0'] := 'fs'
-            A  m.Item['1.0'] = 'fs' && m.Item[1.0] = 'f'
+            m['1'] := 'is'
+            m[1] := 'i'
+            A  m['1'] = 'is' && m[1] = 'i'
+            m[1.0] := 'f'
+            m['1.0'] := 'fs'
+            A  m['1.0'] = 'fs' && m[1.0] = 'f'
             
             s := ''
             for k, v in m
@@ -749,9 +734,9 @@ class Tests
             A  s = ' Integer:1:i String:1:is String:1.0:fs Float:1.0:f'
             
             m := new Map
-            m.Item[-.1] := '-f' ; Normally coerced to "-0.1"
-            m.Item["-.1"] := '-fs'
-            m.Item["-0.1"] := '-0fs'
+            m[-.1] := '-f' ; Normally coerced to "-0.1"
+            m["-.1"] := '-fs'
+            m["-0.1"] := '-0fs'
             s := ''
             for k, v in m
                 s .= ' ' type(k) ':' k ':' v
@@ -761,15 +746,15 @@ class Tests
         Delete()
         {
             m := new Map
-            m.Item['x'] := 1
-            m.Item['y'] := 2
+            m['x'] := 1
+            m['y'] := 2
             A  m.Has('x') && m.Has('y') && m.Count = 2
             m.Delete('x')
             A  m.Has('x') = false && m.Has('y') && m.Count = 1
             
             m := new Map
-            m.Item['x'] := 1
-            m.Item['y'] := 2
+            m['x'] := 1
+            m['y'] := 2
             A  m.Has('x') && m.Has('y') && m.Count = 2
             m.Clear()
             A  m.Has('x') = false && m.Has('y') = false && m.Count = 0
@@ -784,7 +769,6 @@ class Tests
         
         A  "".length = 0 && "foo".length = 3
         A  "abc"[2] = "b" && "abc"[-1] = "c"
-        A  "def".Item[3] = "f" && "def".Item[-3] = "d"
         MustThrow () => ""[1]
         
         A  1.HasMethod('HasProperty')

@@ -1,6 +1,6 @@
 # Object.ahk
 
-This library for AutoHotkey v2-alpha tests some ideas for potential changes to how objects work.
+This library for AutoHotkey **v2.0-a101** tests some ideas for potential changes to how objects work.
 
 Reference:
  - [class Array](Array.md)
@@ -29,14 +29,16 @@ Solution: Separate an associative array's elements from its properties/methods.
     - `{a: b, c: d}` is most often used to create ad-hoc objects with known properties, so these should be properties.
     - Provide some other way to access properties with calculated names.
 
-Associative arrays most often start out empty, so new syntax for an "associative array literal" seems unnecessary. The primary advantage of `{x: y}` is that the property names do not need to be quoted - this is consistent with `obj.x` and not with `obj["x"]`.
+Associative arrays most often start out empty, so new syntax for an "associative array literal" seems unnecessary. The primary advantage of `{x: y}` is that the property names do not need to be quoted - this is consistent with `obj.x` and not with `obj["x"]`. On the other hand, the current rules also allow `{"x": y}` and any other expression which isn't a plain variable. Perhaps properties can require a `literal_identifier:` or `%variable_identifier%:` while array elements require `[index]:`.
 
 For accessing properties with calculated names, there are a number of possibilities.
   - `obj.%name%` is a fairly obvious extension of `%varname%` and `%funcname%()`.
   - `ObjGet(obj, name)` is simple to implement and would also permit `Func("ObjGet").bind(obj)` or similar (but this is redundant since the addition of fat arrow functions).
   - `obj.[name]` is currently reserved in v2-alpha and could be used for this purpose, but it is not as visually distinct, and has misleading similarity to the indexing operator. In v1 it is an empty-named property.
 
-Actual implementation: Meta-functions cannot currently differentiate between `obj.x` and `obj["x"]`; therefore, object types which contain data are expected to provide a parameterized property `obj.Item[key]`. Instances of `Array` also support `myArray[i]` as the index must be an integer.
+Actual implementation: Objects do not allow `[]` unless an `__Item` property is defined. `Map` and `Array` define this property, and it only returns map/array elements. Currently `Array` also allows `a.1` to refer to element 1 of array `a` (there is no ambiguity because Array does not permit non-integer keys).
+
+> **Note:** v2.0-a101 adds support for `obj.%name%` (can be followed by `[]` or `()`) and the `__Item` property, which is invoked by `obj[...]` before any meta-functions.
 
 ## Separate methods and properties
 
@@ -168,7 +170,7 @@ Since it is more natural to enumerate an array's contents by default rather than
 
 ## Misc
 
-`x.y[z]` is translated to `x.y.Item[z]` and therefore throws an exception if `x.y` is not an object or does not implement `.Item[]`. This is because for `x.y[z]`, the parameter `z` is always known to be enclosed in `[]` (unlike `y`, which is presumed to be not enclosed, but could be). In the final language, there would be no `Item`, only the `[]` indexing operator. (On the other hand, for classes to implement the operator, it must be given either a property name or two method names. It could be named `Item`.)
+If `x.y` contains an object (or is a property which accepts no parameters and returns an object), this library handles `x.y[z]` as `(x.y)[z]`. By contrast, current AutoHotkey versions discard `z` if `x.y` is handled by a getter/setter, unless that getter/setter explicitly accepts the parameter.
 
 
 ## Multi-Dimensional Arrays
@@ -177,7 +179,7 @@ Currently this script does not fully implement multi-dimensional arrays, associa
 
 AutoHotkey's limited "emulation" of multi-dimensional arrays has been useful, but is also a source of confusion when it comes to enumerating over items, cloning the array, or calling methods such as `GetAddress`. A proper multi-dim type should support the same interface as a single-dim type, only with the single index replaced with multiple.
 
-Currently the `Map` and `Array` types translate `m.Item[a,b]` to `m.Item[a].Item[b]`, but a sub-object must be explicitly assigned first. It's hard to see whether this has any real value, or just muddies the waters.
+Currently the `Map` and `Array` types translate `m[a,b]` to `m[a][b]`, but a sub-object must be explicitly assigned first. It's hard to see whether this has any real value, or just muddies the waters.
 
 For a standard AutoHotkey object `x`, `x.y[z]` does not throw an error if `x.y` is uninitialized (as it would for `(x.y)[z]`), because it is interpreted the same as `x["y", z]`; i.e. multi-dimensional array access. That is not the case with this script.
 

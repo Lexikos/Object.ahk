@@ -32,18 +32,12 @@ Returns an enumerator function which retrieves the array's contents, one element
 
 ```
 arr[i]
-arr.Item[i]
 ```
 `i` can be any positive index, or a zero or negative value to indicate an index relative to `Length`, with `-1` being the last element and `0` being `Length+1`.
 
-Note that `arr[i]` is actually ambiguous in the current implementation, but is allowed for convenience, since there should be no overlap been valid indices and valid property names. Using `.Item` allows the index to be validated (an error is thrown if it is not an integer).
+Non-integer keys are not permitted. Use a [Map](Map.md) for that.
 
 ```
 arr[i, p*]
 ```
-Due to technical limitations, this has a mix of old and new semantics. That is, if the array element exists, `p*` is applied according to the old rules, since the meta-functions are not invoked. (This is due to the need to store array elements directly in `arr` for use with variadic calls.) In other words, `p*` is applied with `p[1]` being a property name, not as an indexer.
-
-```
-arr.Item[i, p*]
-```
-Equivalent to `arr.Item[i].Item[p*]` when `p` is non-empty. This is to emphasize the intention that indexing and properties be separate.
+Equivalent to `arr[i][p*]` when `p` is non-empty.

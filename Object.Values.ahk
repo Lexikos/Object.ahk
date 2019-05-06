@@ -1,10 +1,23 @@
 ﻿
+class _PrimitiveValue_Base {
+    __item[p*] {
+        get {
+            return _Object_mget(%Type(this)%.prototype, this, "__Item", p, false)
+        }
+        set {
+            p.Push(value)
+            return _Object_mset(%Type(this)%.prototype, this, "__Item", p, false)
+        }
+    }
+}
+
 Value__call(value, k, p*) {
     static _ := (
         _ := "".base,
         _.__call := Func("Value__call"),
         _.__get := Func("Value__get"),
         _.__set := Func("Value__set"),
+        _.base := _PrimitiveValue_Base,
         0)
     return _Object_mcall(%Type(value)%.prototype, value, k, p)
 }
@@ -109,7 +122,7 @@ class String extends PrimitiveValue
             return (c := SubStr(this, index, 1)) != "" ? c : Object_throw(IndexError, "Invalid index", index)
         }
         
-        Item[index, p*] {
+        __Item[index, p*] {
             get {
                 if !(index is 'integer') || ObjLength(p)
                     Object_throw(TypeError, "Invalid index", index)

@@ -25,9 +25,14 @@ m.Has(key)
 Returns true if the map contains this key.
 
 ```
-m.Item[key]
+m[key]
 ```
 Returns or sets the value associated with `key`.
+
+```
+m[key, p*]
+```
+Equivalent to `m[key][p*]` when `p` is non-empty.
 
 ```
 m.__forin()

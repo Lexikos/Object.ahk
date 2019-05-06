@@ -1,4 +1,4 @@
-# Meta-Methods
+# Meta-Methods and a Meta-Property
 
 ## __getprop, __setprop
 
@@ -54,3 +54,18 @@ This static method is called after a class is initialized. With the current scri
 ## __forin
 
 Currently called by the internal `_NewEnum` method, but the idea is that this would be called by `for`. This should return an enumerator function. See [Enumeration](readme.md#enumeration).
+
+
+## __item
+
+Added by v2.0-a101 and also utilized by this library.  Called whenever the indexing operator is used with an object, as in `obj[index]`.
+```
+__item[p*] {
+    get {
+        ...
+    }
+    set {
+        ...
+    }
+}
+```

@@ -20,7 +20,7 @@ Object(p*) {
         value := ObjPop(p), key := ObjPop(p)
         ; Could write directly to propdata, but then properties such
         ; as 'base' or any added by the user would not work.
-        this[key] := value
+        _Object_mset(this, this, key, Object_v(value))
     }
     return this
 }
