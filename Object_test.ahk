@@ -123,10 +123,10 @@ class Tests
             MustThrow(() => x.pg := 100)
             A  x.pg = "pg()"
             A  x.pgs = "pgs()"
-            A  (x.pgs := 200) = "pgs := 200"
+            A  (x.pgs := 200) = 200 && ObjRawGet(x, "_pgs") = 200
             A  x.pgs = "pgs(200)"
             A  x.ps = ""
-            A  (x.ps := 300) = "ps := 300"
+            A  (x.ps := 300) = 300 && ObjRawGet(x, "_ps") = 300
             A  x.ps = ""
             A  y.pg = ""
             
@@ -150,14 +150,13 @@ class Tests
             x.DefineProperty("p", {get: Func("Test_get").Bind("p")})
             x.DefineProperty("p", {set: Func("Test_set").Bind("p")})
             A  x.p = "p()"
-            A  (x.p := 123) = "p := 123"
+            A  (x.p := 123) = 123 && ObjRawGet(x, "_p") = 123
             
             Test_get(arg1, this) {
                 return arg1 "(" ObjRawGet(this, "_" arg1) ")"
             }
             Test_set(arg1, this, value) {
                 ObjRawSet(this, "_" arg1, value)
-                return arg1 " := " value
             }
         }
         
@@ -308,25 +307,26 @@ class Tests
         {
             ; Test handling of index args with variadic property.
             x := new Object
+            assigned := ""
             x.DefineProperty('pv', {
                 get: (this, args*) => 'get ' ObjLength(args),
-                set: (this, value, args*) => 'set ' ObjLength(args) ' = ' value})
+                set: (this, value, args*) => assigned := 'set ' ObjLength(args) ' = ' value})
             A  (x.pv) = 'get 0'
             A  (x.pv['a']) = 'get 1'
             A  (x.pv['a','b']) = 'get 2'
-            A  (x.pv := 'x') = 'set 0 = x'
-            A  (x.pv['a'] := 'y') = 'set 1 = y'
-            A  (x.pv['a','b'] := 'z') = 'set 2 = z'
+            A  (x.pv := 'x') = 'x' && assigned = 'set 0 = x'
+            A  (x.pv['a'] := 'y') = 'y' && assigned = 'set 1 = y'
+            A  (x.pv['a','b'] := 'z') = 'z' && assigned = 'set 2 = z'
             
             ; Test handling of index with single standard arg.
             x.DefineProperty('p1', {
                 get: (this, arg) => 'get ' arg,
-                set: (this, value, arg) => 'set ' arg ' = ' value})
+                set: (this, value, arg) => assigned := 'set ' arg ' = ' value})
             MustThrow(() => x.p1)
             A  (x.p1['a']) = 'get a'
             A  (x.p1['a','b']) = 'get a'
-            A  (x.p1['a'] := 'x') = 'set a = x'
-            A  (x.p1['a','b'] := 'y') = 'set a = y'
+            A  (x.p1['a'] := 'x') = 'x' && assigned = 'set a = x'
+            A  (x.p1['a','b'] := 'y') = 'y' && assigned = 'set a = y'
             
             ; Test automatic application of [index] to the result of a
             ; property when the property does not accept index args.
@@ -349,14 +349,15 @@ class Tests
             x := new Object
             x.DefineMethod('__getprop'
                 , (this, name, args) => 'get ' name ' ' ObjLength(args))
+            assigned := ""
             x.DefineMethod('__setprop'
-                , (this, name, value, args) => 'set ' name ' ' ObjLength(args) ' = ' value)
+                , (this, name, value, args) => assigned := 'set ' name ' ' ObjLength(args) ' = ' value)
             A  (x.pv) = 'get pv 0'
             A  (x.pv['a']) = 'get pv 1'
             A  (x.pv['a','b']) = 'get pv 2'
-            A  (x.pv := 'x') = 'set pv 0 = x'
-            A  (x.pv['a'] := 'y') = 'set pv 1 = y'
-            A  (x.pv['a','b'] := 'z') = 'set pv 2 = z'
+            A  (x.pv := 'x') = 'x' && assigned = 'set pv 0 = x'
+            A  (x.pv['a'] := 'y') = 'y' && assigned = 'set pv 1 = y'
+            A  (x.pv['a','b'] := 'z') = 'z' && assigned = 'set pv 2 = z'
             
             ; Test automatic application of [index] to the result of a
             ; property when the meta-method does not accept index args.
