@@ -100,7 +100,7 @@ class PrimitiveValue extends Object
         }
         
         Properties() {
-            return isObject(this) ? base.Properties() : () => false ; No own properties.
+            return isObject(this) ? base.Properties() : (*) => false ; No own properties.
         }
     }
 }

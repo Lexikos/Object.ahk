@@ -321,7 +321,7 @@ class Enumerator ; This is an old-style class due to the need for ByRef.
     }
     
     Next(ByRef a, ByRef b:="") {
-        return %this.f%(a, IsByRef(b) ? b : "")
+        return IsByRef(b) ? %this.f%(a, b) : %this.f%(a)
     }
     
     _NewEnum() {

@@ -72,7 +72,7 @@ class Tests
             x.adhocprop := 2
             A  x.HasOwnProperty('adhocprop')
             y := new x
-            y.DefineProperty('xxx', {get: () => 10})
+            y.DefineProperty('xxx', {get: this => 10})
             A  y.xxx = 10 && y.HasOwnProperty('xxx')
             A  y.HasProperty('adhocprop') = true
             A  y.HasOwnProperty('adhocprop') = false
@@ -218,13 +218,13 @@ class Tests
             s := EnumPropPairs(x)
             A  s = ' one:1 three:3 two:2'
             
-            x.DefineProperty('four', {get: () => 4})
+            x.DefineProperty('four', {get: (this) => 4})
             s := EnumPropPairs(x)
             A  s = ' four:4 one:1 three:3 two:2'
             
             x := {}
             called := false
-            x.DefineProperty('five', {get: () => called := true})
+            x.DefineProperty('five', {get: this => called := true})
             ; Properties are not called if enumerator receives only one parameter.
             s := EnumPropKeys(x)
             A  s = ' five' && not called
@@ -261,7 +261,7 @@ class Tests
         DataOverrideProp()
         {
             x := new Object
-            x.DefineProperty('p', {get: () => 'fail'})
+            x.DefineProperty('p', {get: this => 'fail'})
             y := new Object
             y.p := 'pass'
             y.base := x
@@ -274,7 +274,7 @@ class Tests
             x := new Object
             x.p := 'fail'
             y := new Object
-            y.DefineProperty('p', {get: () => 'pass'})
+            y.DefineProperty('p', {get: this => 'pass'})
             y.base := x
             A  y is x
             A  y.p = 'pass'
@@ -297,7 +297,7 @@ class Tests
             ; Unlike v1, inherited property takes precedence.
             x := new Object
             y := new x
-            y.DefineMethod('__getprop', () => 'called')
+            y.DefineMethod('__getprop', (this, name) => 'called')
             A  y.foo = 'called'
             A  x.foo := 'bar'
             A  y.foo = 'bar'
@@ -322,11 +322,11 @@ class Tests
             x.DefineProperty('p1', {
                 get: (this, arg) => 'get ' arg,
                 set: (this, value, arg) => assigned := 'set ' arg ' = ' value})
-            MustThrow(() => x.p1)
             A  (x.p1['a']) = 'get a'
-            A  (x.p1['a','b']) = 'get a'
             A  (x.p1['a'] := 'x') = 'x' && assigned = 'set a = x'
-            A  (x.p1['a','b'] := 'y') = 'y' && assigned = 'set a = y'
+            MustThrow () => x.p1  ; Too few parameters
+            MustThrow () => x.p1['a','b']  ; Too many parameters
+            MustThrow () => x.p1['a','b'] := 'y'
             
             ; Test automatic application of [index] to the result of a
             ; property when the property does not accept index args.
@@ -389,7 +389,7 @@ class Tests
         {
             x := {}
             d := 0
-            x.DefineMethod('__delete', () => ++d)
+            x.DefineMethod('__delete', (*) => ++d)
             y := new x
             A  d = 0
             y := ''
@@ -445,7 +445,7 @@ class Tests
             A  TestClass1.isAClass
             A  Object.HasProperty('isAClass')
             
-            Class.prototype.DefineMethod('ClassM', () => "yes, ClassM")
+            Class.prototype.DefineMethod('ClassM', this => "yes, ClassM")
             A  Object.HasMethod('ClassM')
             A  Object.ClassM() = "yes, ClassM"
             Class.prototype.DeleteMethod('ClassM')
@@ -460,7 +460,7 @@ class Tests
             A  Class.isAnObject = true
             A  x.HasProperty('isAnObject')
             
-            Object.prototype.DefineMethod('ObjectM', () => "yes, ObjectM")
+            Object.prototype.DefineMethod('ObjectM', this => "yes, ObjectM")
             A  x.HasMethod('ObjectM')
             A  x.ObjectM() = "yes, ObjectM"
             Object.prototype.DeleteMethod('ObjectM')
@@ -475,7 +475,7 @@ class Tests
             A  Class.isAnArray = ""
             A  x.HasProperty('isAnArray')
             
-            Array.prototype.DefineMethod('ArrayM', () => "yes, ArrayM")
+            Array.prototype.DefineMethod('ArrayM', this => "yes, ArrayM")
             A  x.HasMethod('ArrayM')
             A  x.ArrayM() = "yes, ArrayM"
             Array.prototype.DeleteMethod('ArrayM')
@@ -777,8 +777,8 @@ class Tests
         
         MustThrow () => 1.base := {}
         MustThrow () => "".base := {}
-        MustThrow () => 1.DefineProperty('answer', {get: () => 42})
-        MustThrow () => 1.DefineMethod('getanswer', () => 42)
+        MustThrow () => 1.DefineProperty('answer', {get: this => 42})
+        MustThrow () => 1.DefineMethod('getanswer', this => 42)
         MustThrow () => "".DeleteProperty('x')
         MustThrow () => "".DeleteMethod('y')
         
